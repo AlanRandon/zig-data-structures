@@ -125,8 +125,8 @@ test "binary tree works" {
             try tree.insert(i);
         }
 
-        try std.testing.expect(tree.min() == 2);
-        try std.testing.expect(tree.max() == 9);
+        try std.testing.expectEqual(tree.min(), 2);
+        try std.testing.expectEqual(tree.max(), 9);
     }
     _ = gpa.detectLeaks();
 }

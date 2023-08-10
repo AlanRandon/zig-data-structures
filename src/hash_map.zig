@@ -100,7 +100,7 @@ test "hash map works" {
 
         inline for (.{ .{ 1, 10 }, .{ 2, 20 } }) |entry| {
             try map.insert(entry.@"0", entry.@"1");
-            try std.testing.expect(map.get(entry.@"0").? == entry.@"1");
+            try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
         }
     }
     _ = gpa.detectLeaks();
