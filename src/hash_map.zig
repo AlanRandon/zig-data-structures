@@ -91,17 +91,13 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
 }
 
 test "hash map works" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    {
-        var map = try HashMap(u64, u64).new(10, allocator);
-        try map.resize(5);
-        defer map.deinit();
+    var allocator = std.testing.allocator;
+    var map = try HashMap(u64, u64).new(10, allocator);
+    try map.resize(5);
+    defer map.deinit();
 
-        inline for (.{ .{ 1, 10 }, .{ 2, 20 } }) |entry| {
-            try map.insert(entry.@"0", entry.@"1");
-            try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
-        }
+    inline for (.{ .{ 1, 10 }, .{ 2, 20 } }) |entry| {
+        try map.insert(entry.@"0", entry.@"1");
+        try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
     }
-    _ = gpa.detectLeaks();
 }

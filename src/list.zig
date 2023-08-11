@@ -54,29 +54,25 @@ pub fn List(comptime T: type) type {
 }
 
 test "list works" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    {
-        var list = try List(u64).new(allocator);
-        defer list.deinit();
+    var allocator = std.testing.allocator;
+    var list = try List(u64).new(allocator);
+    defer list.deinit();
 
-        // [ 1 , 2 ]
-        try list.push(1);
-        try list.push(2);
+    // [ 1 , 2 ]
+    try list.push(1);
+    try list.push(2);
 
-        // [ 1 ]
-        var element = list.pop();
+    // [ 1 ]
+    var element = list.pop();
 
-        // [ 1, 3 ]
-        try list.push(3);
+    // [ 1, 3 ]
+    try list.push(3);
 
-        try std.testing.expectEqual(list.get(1), 3);
-        try std.testing.expectEqual(list.get(800), null);
+    try std.testing.expectEqual(list.get(1), 3);
+    try std.testing.expectEqual(list.get(800), null);
 
-        try std.testing.expectEqual(element, 2);
-        try std.testing.expectEqual(list.pop(), 3);
-        try std.testing.expectEqual(list.pop(), 1);
-        try std.testing.expectEqual(list.pop(), null);
-    }
-    _ = gpa.detectLeaks();
+    try std.testing.expectEqual(element, 2);
+    try std.testing.expectEqual(list.pop(), 3);
+    try std.testing.expectEqual(list.pop(), 1);
+    try std.testing.expectEqual(list.pop(), null);
 }

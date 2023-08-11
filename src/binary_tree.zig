@@ -115,18 +115,14 @@ pub fn BinaryTree(comptime T: type) type {
 }
 
 test "binary tree works" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    {
-        var tree = BinaryTree(u64).new(allocator);
-        defer tree.deinit();
+    var allocator = std.testing.allocator;
+    var tree = BinaryTree(u64).new(allocator);
+    defer tree.deinit();
 
-        inline for (.{ 5, 4, 9, 3, 2 }) |i| {
-            try tree.insert(i);
-        }
-
-        try std.testing.expectEqual(tree.min(), 2);
-        try std.testing.expectEqual(tree.max(), 9);
+    inline for (.{ 5, 4, 9, 3, 2 }) |i| {
+        try tree.insert(i);
     }
-    _ = gpa.detectLeaks();
+
+    try std.testing.expectEqual(tree.min(), 2);
+    try std.testing.expectEqual(tree.max(), 9);
 }
