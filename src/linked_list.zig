@@ -19,14 +19,20 @@ pub fn SinglyLinkedList(comptime T: type) type {
         head: ?*Node,
         allocator: Allocator,
 
-        pub fn new(allocator: Allocator) Self {
+        pub fn init(allocator: Allocator) Self {
             return .{ .head = null, .allocator = allocator };
         }
 
-        pub fn insertStart(self: *Self, data: T) Allocator.Error!void {
+        pub fn insertHead(self: *Self, data: T) Allocator.Error!void {
             var head = try self.allocator.create(Node);
             head.* = .{ .data = data, .next = self.head };
             self.head = head;
+        }
+
+        pub fn popHead(self: *Self) ?T {
+            var head = self.head orelse return null;
+            self.head = head.next;
+            return head.data;
         }
 
         pub fn getNode(self: *Self, index: usize) ?*Node {
@@ -65,11 +71,11 @@ pub fn SinglyLinkedList(comptime T: type) type {
 test "singly linked list works" {
     var allocator = std.testing.allocator;
     const data = .{ 2, 4, 6, 8, 10 };
-    var list = SinglyLinkedList(u64).new(allocator);
+    var list = SinglyLinkedList(u64).init(allocator);
     defer list.deinit();
 
     inline for (data) |i| {
-        try list.insertStart(i);
+        try list.insertHead(i);
     }
 
     try std.testing.expectEqual(list.get(3), 4);

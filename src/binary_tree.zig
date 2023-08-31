@@ -10,12 +10,34 @@ pub fn BinaryTree(comptime T: type) type {
             value: T,
             right: ?*Node,
 
-            pub fn new(value: T) Node {
+            pub fn init(value: T) Node {
                 return .{
                     .left = null,
                     .value = value,
                     .right = null,
                 };
+            }
+
+            const ChildrenType = enum {
+                leaf,
+                left,
+                right,
+                both,
+            };
+
+            pub fn childrenType(self: *Node) ChildrenType {
+                if (self.right) {
+                    if (self.left) {
+                        return ChildrenType.both;
+                    }
+                    return ChildrenType.right;
+                }
+
+                if (self.left) {
+                    return ChildrenType.left;
+                }
+
+                return ChildrenType.leaf;
             }
 
             pub fn deinit(self: *Node, allocator: Allocator) void {
@@ -32,28 +54,28 @@ pub fn BinaryTree(comptime T: type) type {
                 if (value < self.value) {
                     if (self.left == null) {
                         self.left = try allocator.create(Node);
-                        self.left.?.* = Node.new(value);
+                        self.left.?.* = Node.init(value);
                         return;
                     }
                     try self.left.?.insert(value, allocator);
                 } else {
                     if (self.right == null) {
                         self.right = try allocator.create(Node);
-                        self.right.?.* = Node.new(value);
+                        self.right.?.* = Node.init(value);
                         return;
                     }
                     try self.right.?.insert(value, allocator);
                 }
             }
 
-            pub fn min(self: *Node) T {
-                const node = self.left orelse return self.value;
-                return node.min();
+            pub fn minNode(self: *Node) *Node {
+                const node = self.left orelse return self;
+                return node.minNode();
             }
 
-            pub fn max(self: *Node) T {
-                const node = self.right orelse return self.value;
-                return node.max();
+            pub fn maxNode(self: *Node) *Node {
+                const node = self.right orelse return self;
+                return node.maxNode();
             }
 
             fn format(self: *Node, indent: u64, writer: anytype) !void {
@@ -76,7 +98,7 @@ pub fn BinaryTree(comptime T: type) type {
         root: ?Node,
         allocator: Allocator,
 
-        pub fn new(allocator: Allocator) Self {
+        pub fn init(allocator: Allocator) Self {
             return .{ .root = null, .allocator = allocator };
         }
 
@@ -87,7 +109,7 @@ pub fn BinaryTree(comptime T: type) type {
 
         pub fn insert(self: *Self, value: T) Allocator.Error!void {
             if (self.root == null) {
-                var node = Node.new(value);
+                var node = Node.init(value);
                 self.root = node;
                 return;
             }
@@ -97,12 +119,12 @@ pub fn BinaryTree(comptime T: type) type {
 
         pub fn min(self: *Self) ?T {
             var root = self.root orelse return null;
-            return root.min();
+            return root.minNode().value;
         }
 
         pub fn max(self: *Self) ?T {
             var root = self.root orelse return null;
-            return root.max();
+            return root.maxNode().value;
         }
 
         pub fn format(value: *const Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -116,7 +138,7 @@ pub fn BinaryTree(comptime T: type) type {
 
 test "binary tree works" {
     var allocator = std.testing.allocator;
-    var tree = BinaryTree(u64).new(allocator);
+    var tree = BinaryTree(u64).init(allocator);
     defer tree.deinit();
 
     inline for (.{ 5, 4, 9, 3, 2 }) |i| {

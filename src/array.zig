@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn List(comptime T: type) type {
+pub fn Array(comptime T: type) type {
     return struct {
         const Self = @This();
 
@@ -9,11 +9,11 @@ pub fn List(comptime T: type) type {
         data: []T,
         allocator: Allocator,
 
-        pub fn new(allocator: Allocator) Allocator.Error!Self {
-            return with_capacity(0, allocator);
+        pub fn init(allocator: Allocator) Allocator.Error!Self {
+            return withCapacity(0, allocator);
         }
 
-        pub fn with_capacity(capacity: usize, allocator: Allocator) Allocator.Error!Self {
+        pub fn withCapacity(capacity: usize, allocator: Allocator) Allocator.Error!Self {
             return .{
                 .length = 0,
                 .data = try allocator.alloc(T, capacity),
@@ -50,29 +50,38 @@ pub fn List(comptime T: type) type {
             if (index >= self.length) return null;
             return self.data[index];
         }
+
+        pub fn last(self: *Self) ?T {
+            if (0 == self.length) return null;
+            return self.data[self.length - 1];
+        }
+
+        pub fn first(self: *Self) ?T {
+            return self.get(0);
+        }
     };
 }
 
-test "list works" {
+test "array works" {
     var allocator = std.testing.allocator;
-    var list = try List(u64).new(allocator);
-    defer list.deinit();
+    var array = try Array(u64).init(allocator);
+    defer array.deinit();
 
     // [ 1 , 2 ]
-    try list.push(1);
-    try list.push(2);
+    try array.push(1);
+    try array.push(2);
 
     // [ 1 ]
-    var element = list.pop();
+    var element = array.pop();
 
     // [ 1, 3 ]
-    try list.push(3);
+    try array.push(3);
 
-    try std.testing.expectEqual(list.get(1), 3);
-    try std.testing.expectEqual(list.get(800), null);
+    try std.testing.expectEqual(array.get(1), 3);
+    try std.testing.expectEqual(array.get(800), null);
 
     try std.testing.expectEqual(element, 2);
-    try std.testing.expectEqual(list.pop(), 3);
-    try std.testing.expectEqual(list.pop(), 1);
-    try std.testing.expectEqual(list.pop(), null);
+    try std.testing.expectEqual(array.pop(), 3);
+    try std.testing.expectEqual(array.pop(), 1);
+    try std.testing.expectEqual(array.pop(), null);
 }
