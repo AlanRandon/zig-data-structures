@@ -15,6 +15,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
 
         buckets: []Bucket,
         allocator: Allocator,
+        entries: usize,
 
         pub fn init(capacity: usize, allocator: Allocator) Allocator.Error!Self {
             var buckets = try allocator.alloc(Bucket, capacity);
@@ -23,15 +24,27 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
                 buckets[i] = SinglyLinkedList(Entry).init(allocator);
             }
 
-            return .{ .buckets = buckets, .allocator = allocator };
+            return .{ .buckets = buckets, .allocator = allocator, .entries = 0 };
         }
 
         pub fn insert(self: *Self, key: K, value: V) Allocator.Error!void {
+            try self.insert_no_resize(key, value);
+            try self.resize_if_needed();
+        }
+
+        pub fn remove(self: *Self, key: K) Allocator.Error!?V {
+            const data = self.remove_no_resize(key);
+            try self.resize_if_needed();
+            return data;
+        }
+
+        pub fn insert_no_resize(self: *Self, key: K, value: V) Allocator.Error!void {
             const bucket = &self.buckets[hash(key) % self.buckets.len];
             var node = bucket.head;
             while (true) {
                 if (node == null) {
                     try bucket.insertHead(.{ .key = key, .value = value });
+                    self.entries += 1;
                     return;
                 } else if (std.meta.eql(node.?.data.key, key)) {
                     node.?.data.value = value;
@@ -39,6 +52,30 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
                 } else {
                     node = node.?.next;
                 }
+            }
+            self.entries += 1;
+        }
+
+        pub fn remove_no_resize(self: *Self, key: K) ?V {
+            var bucket = &self.buckets[hash(key) % self.buckets.len];
+            var previous_node: ?*Bucket.Node = null;
+            var node = bucket.head orelse return null;
+            while (true) {
+                if (std.meta.eql(node.data.key, key)) {
+                    if (previous_node) |previous| {
+                        previous.next = node.next;
+                    } else {
+                        bucket.head = node.next;
+                    }
+
+                    const data = node.data.value;
+                    self.allocator.destroy(node);
+                    self.entries -|= 1;
+
+                    return data;
+                }
+                previous_node = node;
+                node = node.next orelse return null;
             }
         }
 
@@ -52,7 +89,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             var bucket = self.buckets[hash(key) % self.buckets.len];
             var node = bucket.head orelse return null;
             while (true) {
-                if (std.meta.eql(node.*.data.key, key)) {
+                if (std.meta.eql(node.data.key, key)) {
                     return node.*.data.value;
                 }
                 node = node.next orelse return null;
@@ -71,6 +108,21 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             }
             self.allocator.free(self.buckets);
             self.buckets = new_map.buckets;
+            self.entries = new_map.entries;
+        }
+
+        pub fn resize_if_needed(self: *Self) Allocator.Error!void {
+            // if there is <80% the capacity occupied
+            if (self.entries * 10 / self.buckets.len < 7) {
+                return;
+            }
+
+            // if there is >120% the capacity occupied
+            if (self.entries * 10 / self.buckets.len > 12) {
+                return;
+            }
+
+            try resize(self, self.entries);
         }
 
         pub fn deinit(self: *Self) void {
@@ -79,6 +131,14 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
                 bucket.deinit();
             }
             self.allocator.free(self.buckets);
+        }
+
+        fn dbg_buckets(self: *Self) void {
+            std.debug.print("------\n", .{});
+            for (self.buckets) |bucket| {
+                std.debug.print("{any}\n\n", .{bucket.head});
+            }
+            std.debug.print("------\n", .{});
         }
     };
 }
@@ -93,4 +153,7 @@ test "hash map works" {
         try map.insert(entry.@"0", entry.@"1");
         try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
     }
+
+    try std.testing.expectEqual(try map.remove(2), 20);
+    try std.testing.expectEqual(map.get(2), null);
 }

@@ -5,9 +5,10 @@ const array = @import("./array.zig");
 const linked_list = @import("./linked_list.zig");
 const stack = @import("./stack.zig");
 const memoize = @import("./memoize.zig");
+const sort = @import("./sort.zig");
 
 test {
-    _ = .{ hash_map, binary_tree, array, linked_list, stack, memoize };
+    _ = .{ hash_map, binary_tree, array, linked_list, stack, memoize, sort };
     std.testing.refAllDeclsRecursive(@This());
 }
 
