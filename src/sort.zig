@@ -62,7 +62,7 @@ pub fn merge(comptime T: type, a: []T, b: []T, merged: []T) void {
 test "merge sort works" {
     var data = [_]u8{ 4, 7, 1, 5 };
     var sorted: [4]u8 = undefined;
-    mergeSort(@as([]u8, &data), undefined);
+    mergeSort(@as([]u8, &data), @as([]u8, &sorted));
     var expected = [_]u8{ 1, 4, 5, 7 };
     try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &sorted));
 }
