@@ -28,17 +28,17 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
         }
 
         pub fn insert(self: *Self, key: K, value: V) Allocator.Error!void {
-            try self.insert_no_resize(key, value);
-            try self.resize_if_needed();
+            try self.insertNoResize(key, value);
+            try self.resizeIfNeeded();
         }
 
         pub fn remove(self: *Self, key: K) Allocator.Error!?V {
-            const data = self.remove_no_resize(key);
-            try self.resize_if_needed();
+            const data = self.removeNoResize(key);
+            try self.resizeIfNeeded();
             return data;
         }
 
-        pub fn insert_no_resize(self: *Self, key: K, value: V) Allocator.Error!void {
+        pub fn insertNoResize(self: *Self, key: K, value: V) Allocator.Error!void {
             const bucket = &self.buckets[hash(key) % self.buckets.len];
             var node = bucket.head;
             while (true) {
@@ -56,7 +56,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             self.entries += 1;
         }
 
-        pub fn remove_no_resize(self: *Self, key: K) ?V {
+        pub fn removeNoResize(self: *Self, key: K) ?V {
             var bucket = &self.buckets[hash(key) % self.buckets.len];
             var previous_node: ?*Bucket.Node = null;
             var node = bucket.head orelse return null;
@@ -111,7 +111,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             self.entries = new_map.entries;
         }
 
-        pub fn resize_if_needed(self: *Self) Allocator.Error!void {
+        pub fn resizeIfNeeded(self: *Self) Allocator.Error!void {
             // if there is <80% the capacity occupied
             if (self.entries * 10 / self.buckets.len < 7) {
                 return;
@@ -133,7 +133,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             self.allocator.free(self.buckets);
         }
 
-        fn dbg_buckets(self: *Self) void {
+        fn dbgBuckets(self: *Self) void {
             std.debug.print("------\n", .{});
             for (self.buckets) |bucket| {
                 std.debug.print("{any}\n\n", .{bucket.head});

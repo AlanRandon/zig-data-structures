@@ -1,15 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn mergeItem(comptime T: type) type {
-    const data_type = @typeInfo(T);
-    const item_type = data_type.Pointer.child;
-    return item_type;
-}
-
 /// Sort `data` and copy it to `buffer`
 fn mergeSort(data: anytype, buffer: anytype) void {
-    const item_type = mergeItem(@TypeOf(data));
+    const item_type = @typeInfo(@TypeOf(data)).Pointer.child;
     const midpoint = data.len / 2;
     if (midpoint == 0) {
         for (data, 0..) |item, index| {

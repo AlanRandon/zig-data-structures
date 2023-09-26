@@ -6,9 +6,21 @@ const linked_list = @import("./linked_list.zig");
 const stack = @import("./stack.zig");
 const memoize = @import("./memoize.zig");
 const sort = @import("./sort.zig");
+const search = @import("./search.zig");
+const deque = @import("./deque.zig");
 
 test {
-    _ = .{ hash_map, binary_tree, array, linked_list, stack, memoize, sort };
+    _ = .{
+        hash_map,
+        binary_tree,
+        array,
+        linked_list,
+        stack,
+        memoize,
+        sort,
+        search,
+        deque,
+    };
     std.testing.refAllDeclsRecursive(@This());
 }
 
