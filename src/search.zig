@@ -2,10 +2,6 @@ const std = @import("std");
 const Order = std.math.Order;
 
 pub fn binarySearch(comptime T: type, data: []const T, searcher: anytype) ?T {
-    if (data.len == 1) {
-        return data[0];
-    }
-
     if (data.len == 0) {
         return null;
     }
@@ -21,7 +17,7 @@ pub fn binarySearch(comptime T: type, data: []const T, searcher: anytype) ?T {
             );
         },
         .lt => {
-            const right = data[midpoint..data.len];
+            const right = data[(midpoint + 1)..data.len];
             return @call(
                 .always_tail,
                 binarySearch,
@@ -38,14 +34,26 @@ test "binary search works" {
         .{ 1, 'a' },
         .{ 2, 'b' },
         .{ 3, 'c' },
-        .{ 4, 'd' },
-        .{ 5, 'e' },
-        .{ 6, 'f' },
+        .{ 5, 'd' },
+        .{ 6, 'e' },
+        .{ 7, 'f' },
     };
-    const item = binarySearch(Pair, @as([]const Pair, &data), struct {
-        fn order(item: Pair) Order {
-            return std.math.order(item.@"0", 2);
-        }
-    }) orelse @panic("item not found");
-    try std.testing.expectEqual(item.@"1", 'b');
+
+    {
+        const item = binarySearch(Pair, @as([]const Pair, &data), struct {
+            fn order(item: Pair) Order {
+                return std.math.order(item.@"0", 2);
+            }
+        }) orelse @panic("item not found");
+        try std.testing.expectEqual(item.@"1", 'b');
+    }
+
+    {
+        const item = binarySearch(Pair, @as([]const Pair, &data), struct {
+            fn order(item: Pair) Order {
+                return std.math.order(item.@"0", 4);
+            }
+        });
+        try std.testing.expectEqual(@as(?Pair, null), item);
+    }
 }

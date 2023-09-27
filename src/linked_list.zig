@@ -92,3 +92,148 @@ test "singly linked list works" {
         }
     }
 }
+
+pub fn DoublyLinkedList(comptime T: type) type {
+    return struct {
+        const Self = @This();
+
+        const Node = struct {
+            next: ?*Node,
+            prev: ?*Node,
+            data: T,
+        };
+
+        head: ?*Node,
+        tail: ?*Node,
+        allocator: Allocator,
+
+        pub fn init(allocator: Allocator) Self {
+            return .{
+                .head = null,
+                .tail = null,
+                .allocator = allocator,
+            };
+        }
+
+        pub fn popTail(list: *Self) ?T {
+            var node = list.tail orelse return null;
+            return list.remove(node);
+        }
+
+        pub fn popHead(list: *Self) ?T {
+            var node = list.head orelse return null;
+            return list.remove(node);
+        }
+
+        pub fn insertHead(list: *Self, value: T) !*Node {
+            if (list.head) |head| {
+                return list.insertBefore(head, value);
+            } else {
+                var node = try list.allocator.create(Node);
+                node.prev = null;
+                node.next = null;
+                node.data = value;
+                list.head = node;
+                list.tail = node;
+                return node;
+            }
+        }
+
+        pub fn insertTail(list: *Self, value: T) !*Node {
+            if (list.tail) |tail| {
+                return list.insertAfter(tail, value);
+            } else {
+                var node = try list.allocator.create(Node);
+                node.prev = null;
+                node.next = null;
+                node.data = value;
+                list.head = node;
+                list.tail = node;
+                return node;
+            }
+        }
+
+        pub fn remove(list: *Self, node: *Node) T {
+            defer list.allocator.destroy(node);
+
+            if (node.prev) |prev| {
+                prev.next = node.next;
+            } else {
+                list.head = node.next;
+            }
+
+            if (node.next) |next| {
+                next.prev = node.prev;
+            } else {
+                list.tail = node.prev;
+            }
+
+            return node.data;
+        }
+
+        pub fn insertAfter(list: *Self, node: *Node, value: T) !*Node {
+            var new_node = try list.allocator.create(Node);
+            new_node.data = value;
+            new_node.next = node.next;
+            new_node.prev = node;
+
+            if (node.next == null) {
+                list.tail = new_node;
+            }
+
+            node.next = new_node;
+
+            return new_node;
+        }
+
+        pub fn insertBefore(list: *Self, node: *Node, value: T) !*Node {
+            var new_node = try list.allocator.create(Node);
+            new_node.data = value;
+            new_node.prev = node.prev;
+            new_node.next = node;
+
+            if (node.prev == null) {
+                list.head = new_node;
+            }
+
+            node.prev = new_node;
+
+            return new_node;
+        }
+
+        pub fn deinit(list: *Self) void {
+            var node = list.head orelse return;
+            while (true) {
+                const next = node.next;
+                list.allocator.destroy(node);
+                node = next orelse return;
+            }
+        }
+    };
+}
+
+test "doubly linked list works" {
+    var list = DoublyLinkedList(u8).init(std.testing.allocator);
+    defer list.deinit();
+
+    {
+        // { 1 }
+        _ = try list.insertHead(1);
+        // { 1, 1 }
+        var node = try list.insertTail(1);
+        // { 1, 1, 2 }
+        _ = try list.insertAfter(node, 2);
+        // { 0, 1, 1, 2 }
+        _ = try list.insertHead(0);
+        // { 0, 1, 2 }
+        _ = list.remove(node);
+        // { 0, 1, 2, 3 }
+        _ = try list.insertTail(3);
+    }
+
+    var node = list.head;
+    inline for (.{ 0, 1, 2, 3 }) |i| {
+        try std.testing.expectEqual(node.?.data, i);
+        node = node.?.next;
+    }
+}
