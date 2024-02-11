@@ -71,6 +71,6 @@ test "merge works" {
         @as([]u8, &b),
         @as([]u8, &merged),
     );
-    var expected = [_]u8{ 1, 2, 3, 4, 5, 7 };
+    const expected = [_]u8{ 1, 2, 3, 4, 5, 7 };
     try std.testing.expectEqualDeep(merged, expected);
 }

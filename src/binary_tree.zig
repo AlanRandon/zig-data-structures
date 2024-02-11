@@ -1,150 +1,140 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub fn BinaryTree(comptime T: type) type {
-    return struct {
-        const Self = @This();
+const RedBlackTreeColor = enum {
+    red,
+    black,
+};
 
+pub fn lessThan(a: anytype, b: anytype) bool {
+    return switch (@typeInfo(@TypeOf(a))) {
+        .Pointer => |ptr| std.mem.lessThan(ptr.child, a, b),
+        else => a < b,
+    };
+}
+
+pub fn RedBlackTreeMap(comptime K: type, comptime V: type) type {
+    return struct {
         const Node = struct {
+            color: RedBlackTreeColor,
+            key: K,
+            value: V,
             left: ?*Node,
-            value: T,
             right: ?*Node,
 
-            pub fn init(value: T) Node {
-                return .{
-                    .left = null,
-                    .value = value,
-                    .right = null,
-                };
-            }
-
-            const ChildrenType = enum {
-                leaf,
-                left,
-                right,
-                both,
-            };
-
-            pub fn childrenType(self: *Node) ChildrenType {
-                if (self.right) {
-                    if (self.left) {
-                        return ChildrenType.both;
-                    }
-                    return ChildrenType.right;
+            fn deinit(self: Node, allocator: Allocator) void {
+                if (self.left) |left| {
+                    left.deinit(allocator);
+                    allocator.destroy(left);
                 }
 
-                if (self.left) {
-                    return ChildrenType.left;
-                }
-
-                return ChildrenType.leaf;
-            }
-
-            pub fn deinit(self: *Node, allocator: Allocator) void {
-                inline for (.{ self.left, self.right }) |child_ptr| {
-                    blk: {
-                        var child = child_ptr orelse break :blk;
-                        child.deinit(allocator);
-                        allocator.destroy(child);
-                    }
-                }
-            }
-
-            pub fn insert(self: *Node, value: T, allocator: Allocator) Allocator.Error!void {
-                if (value < self.value) {
-                    if (self.left == null) {
-                        self.left = try allocator.create(Node);
-                        self.left.?.* = Node.init(value);
-                        return;
-                    }
-                    try self.left.?.insert(value, allocator);
-                } else {
-                    if (self.right == null) {
-                        self.right = try allocator.create(Node);
-                        self.right.?.* = Node.init(value);
-                        return;
-                    }
-                    try self.right.?.insert(value, allocator);
-                }
-            }
-
-            pub fn minNode(self: *Node) *Node {
-                const node = self.left orelse return self;
-                return node.minNode();
-            }
-
-            pub fn maxNode(self: *Node) *Node {
-                const node = self.right orelse return self;
-                return node.maxNode();
-            }
-
-            fn format(self: *Node, indent: u64, writer: anytype) !void {
-                try writer.print("[{}]\n", .{self.value});
-                inline for (.{ .{ self.left, 'l' }, .{ self.right, 'r' } }) |pair| {
-                    var child_ptr = pair.@"0";
-                    var symbol: u8 = pair.@"1";
-                    blk: {
-                        var child = child_ptr orelse break :blk;
-                        for (0..indent - 1) |_| {
-                            _ = try writer.write(" | ");
-                        }
-                        try writer.print(" {c}-", .{symbol});
-                        try child.format(indent + 1, writer);
-                    }
+                if (self.right) |right| {
+                    right.deinit(allocator);
+                    allocator.destroy(right);
                 }
             }
         };
+        const Self = @This();
 
-        root: ?Node,
+        root: ?*Node,
         allocator: Allocator,
 
         pub fn init(allocator: Allocator) Self {
-            return .{ .root = null, .allocator = allocator };
+            return .{
+                .root = null,
+                .allocator = allocator,
+            };
+        }
+
+        pub fn insert(self: *Self, key: K, value: V) !void {
+            const node = try self.allocator.create(Node);
+            node.* = .{
+                .key = key,
+                .value = value,
+                .color = .black,
+                .left = null,
+                .right = null,
+            };
+
+            if (self.root) |root| {
+                node.color = .red;
+                var parent = root;
+                while (true) {
+                    if (lessThan(node.key, parent.key)) {
+                        parent = parent.left orelse {
+                            parent.left = node;
+                            break;
+                        };
+                    } else {
+                        parent = parent.right orelse {
+                            parent.right = node;
+                            break;
+                        };
+                    }
+                }
+
+                self.rebalance();
+            } else {
+                self.root = node;
+            }
+        }
+
+        fn rebalance(self: *Self) void {
+            _ = self;
+            @panic("TODO: rebalance");
         }
 
         pub fn deinit(self: *Self) void {
-            var root = self.root orelse return;
-            root.deinit(self.allocator);
+            if (self.root) |root| {
+                root.deinit(self.allocator);
+                self.allocator.destroy(root);
+            }
         }
 
-        pub fn insert(self: *Self, value: T) Allocator.Error!void {
-            if (self.root == null) {
-                var node = Node.init(value);
-                self.root = node;
-                return;
+        fn jsonStringifyNode(
+            self: Self,
+            jws: anytype,
+            node: *Node,
+        ) !void {
+            if (node.left) |left| {
+                try self.jsonStringifyNode(jws, left);
             }
 
-            try self.root.?.insert(value, self.allocator);
+            try jws.objectField(node.key);
+            try jws.write(node.value);
+
+            if (node.right) |right| {
+                try self.jsonStringifyNode(jws, right);
+            }
         }
 
-        pub fn min(self: *Self) ?T {
-            var root = self.root orelse return null;
-            return root.minNode().value;
-        }
-
-        pub fn max(self: *Self) ?T {
-            var root = self.root orelse return null;
-            return root.maxNode().value;
-        }
-
-        pub fn format(value: *const Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-            _ = options;
-            _ = fmt;
-            var root = value.root orelse return;
-            try root.format(1, writer);
+        pub fn jsonStringify(self: Self, jws: anytype) !void {
+            try jws.beginObject();
+            if (self.root) |root| {
+                try self.jsonStringifyNode(jws, root);
+            }
+            try jws.endObject();
         }
     };
 }
 
 test "binary tree works" {
-    var allocator = std.testing.allocator;
-    var tree = BinaryTree(u64).init(allocator);
-    defer tree.deinit();
+    const allocator = std.testing.allocator;
+    var map = RedBlackTreeMap([]const u8, u8).init(allocator);
+    defer map.deinit();
 
-    inline for (.{ 5, 4, 9, 3, 2 }) |i| {
-        try tree.insert(i);
+    inline for (.{ .{ "one", 1 }, .{ "two", 2 } }) |entry| {
+        try map.insert(entry.@"0", entry.@"1");
+        // try std.testing.expectEqual(
+        //     map.get(entry.@"0").?,
+        //     entry.@"1",
+        // );
     }
 
-    try std.testing.expectEqual(tree.min(), 2);
-    try std.testing.expectEqual(tree.max(), 9);
+    const json = try std.json.stringifyAlloc(allocator, map, .{});
+    try std.testing.expectEqualDeep(json, "{\"one\":1,\"two\":2}");
+    allocator.free(json);
+
+    // try std.testing.expectEqual(tree.min(), 2);
+    // try std.testing.expectEqual(tree.max(), 9);
 }

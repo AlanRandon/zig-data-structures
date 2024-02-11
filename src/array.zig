@@ -63,7 +63,7 @@ pub fn Array(comptime T: type) type {
 }
 
 test "array works" {
-    var allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
     var array = try Array(u64).init(allocator);
     defer array.deinit();
 
@@ -72,7 +72,7 @@ test "array works" {
     try array.push(2);
 
     // [ 1 ]
-    var element = array.pop();
+    const element = array.pop();
 
     // [ 1, 3 ]
     try array.push(3);

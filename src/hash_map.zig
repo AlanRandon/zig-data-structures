@@ -86,7 +86,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
         }
 
         pub fn get(self: *Self, key: K) ?V {
-            var bucket = self.buckets[hash(key) % self.buckets.len];
+            const bucket = self.buckets[hash(key) % self.buckets.len];
             var node = bucket.head orelse return null;
             while (true) {
                 if (std.meta.eql(node.data.key, key)) {
@@ -97,7 +97,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
         }
 
         pub fn resize(self: *Self, capacity: usize) Allocator.Error!void {
-            var new_map = try Self.init(capacity, self.allocator);
+            const new_map = try Self.init(capacity, self.allocator);
             for (self.buckets) |bucket_const| {
                 var bucket = bucket_const;
                 while (bucket.popHead()) |entry| {
@@ -144,7 +144,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
 }
 
 test "hash map works" {
-    var allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
     var map = try HashMap(u64, u64).init(10, allocator);
     try map.resize(5);
     defer map.deinit();
