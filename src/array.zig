@@ -59,6 +59,10 @@ pub fn Array(comptime T: type) type {
         pub fn first(self: *Self) ?T {
             return self.get(0);
         }
+
+        pub fn slice(self: *Self) []T {
+            return self.data[0..self.length];
+        }
     };
 }
 

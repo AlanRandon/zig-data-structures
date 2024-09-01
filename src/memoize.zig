@@ -6,12 +6,12 @@ fn memoizeReturnType(comptime F: type) type {
     const info = @typeInfo(F);
 
     const func_info = switch (info) {
-        .Pointer => |pointed| @typeInfo(pointed.child),
+        .pointer => |pointed| @typeInfo(pointed.child),
         else => @compileError("`memoizer` requires a function pointer, recieved " ++ @typeName(F)),
     };
 
     const func = switch (func_info) {
-        .Fn => |func| func,
+        .@"fn" => |func| func,
         else => @compileError("`memoizer` requires a function pointer, recieved " ++ @typeName(F)),
     };
 

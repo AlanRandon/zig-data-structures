@@ -1,7 +1,7 @@
 const std = @import("std");
 const Order = std.math.Order;
 
-pub fn binarySearch(comptime T: type, data: []const T, searcher: anytype) ?T {
+pub fn binarySearch(comptime T: type, data: []T, searcher: anytype) ?*T {
     if (data.len == 0) {
         return null;
     }
@@ -11,7 +11,8 @@ pub fn binarySearch(comptime T: type, data: []const T, searcher: anytype) ?T {
         .gt => {
             const left = data[0..midpoint];
             return @call(
-                .always_tail,
+                // .always_tail,
+                .auto,
                 binarySearch,
                 .{ T, left, searcher },
             );
@@ -19,18 +20,19 @@ pub fn binarySearch(comptime T: type, data: []const T, searcher: anytype) ?T {
         .lt => {
             const right = data[(midpoint + 1)..data.len];
             return @call(
-                .always_tail,
+                // .always_tail,
+                .auto,
                 binarySearch,
                 .{ T, right, searcher },
             );
         },
-        .eq => return data[midpoint],
+        .eq => return &data[midpoint],
     }
 }
 
 test "binary search works" {
     const Pair = struct { u8, u8 };
-    const data = [_]Pair{
+    var data = [_]Pair{
         .{ 1, 'a' },
         .{ 2, 'b' },
         .{ 3, 'c' },
@@ -40,7 +42,7 @@ test "binary search works" {
     };
 
     {
-        const item = binarySearch(Pair, @as([]const Pair, &data), struct {
+        const item = binarySearch(Pair, @as([]Pair, &data), struct {
             fn order(item: Pair) Order {
                 return std.math.order(item.@"0", 2);
             }
@@ -49,11 +51,11 @@ test "binary search works" {
     }
 
     {
-        const item = binarySearch(Pair, @as([]const Pair, &data), struct {
+        const item = binarySearch(Pair, @as([]Pair, &data), struct {
             fn order(item: Pair) Order {
                 return std.math.order(item.@"0", 4);
             }
         });
-        try std.testing.expectEqual(@as(?Pair, null), item);
+        try std.testing.expectEqual(@as(?*Pair, null), item);
     }
 }

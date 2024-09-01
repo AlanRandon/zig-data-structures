@@ -7,9 +7,11 @@ const stack = @import("./stack.zig");
 const memoize = @import("./memoize.zig");
 const sort = @import("./sort.zig");
 const search = @import("./search.zig");
+const huffman = @import("./huffman.zig");
 
 test {
     _ = .{
+        huffman,
         hash_map,
         binary_tree,
         array,
