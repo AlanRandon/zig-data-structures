@@ -8,6 +8,7 @@ const memoize = @import("./memoize.zig");
 const sort = @import("./sort.zig");
 const search = @import("./search.zig");
 const huffman = @import("./huffman.zig");
+const bin_packing = @import("./bin_packing.zig");
 
 test {
     _ = .{
@@ -20,6 +21,7 @@ test {
         memoize,
         sort,
         search,
+        bin_packing,
     };
     std.testing.refAllDeclsRecursive(@This());
 }
@@ -28,17 +30,15 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     {
-        var tree = binary_tree.RedBlackTreeMap(
-            u64,
-            []const u8,
-        ).init(allocator);
-        defer tree.deinit();
+        var groups = [_]usize{ 100, 80, 60, 65, 110, 25, 50, 60, 90, 140, 75, 120, 75, 100, 70, 200, 120, 40 };
+        const bin_size = 400;
+        std.debug.print("lowerBound: {}\n", .{bin_packing.lowerBound(&groups, bin_size)});
+        std.debug.print("firstFit: {}\n", .{bin_packing.firstFit(&groups, bin_size)});
 
-        // inline for (.{ 5, 4, 3, 2, 9 }) |i| {
-        //     try tree.insert(i);
-        // }
+        var bins = try bin_packing.firstFitDecreasing(&groups, bin_size, allocator);
+        defer bins.deinit();
 
-        // std.debug.print("{}\n", .{tree});
+        std.debug.print("firstFitDecreasing: {any}\n", .{bins.slice()});
     }
     _ = gpa.detectLeaks();
 }

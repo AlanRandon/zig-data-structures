@@ -114,48 +114,68 @@ pub fn quickSort(
     }
 
     const item_type = @typeInfo(@TypeOf(data)).pointer.child;
-    const pivot = partition(item_type, data, order);
-    quickSort(data[0 .. pivot - 1], order);
-    quickSort(data[pivot + 1 .. data.len], order);
+    const p = partition(item_type, data, order);
+    quickSort(p[0], order);
+    quickSort(p[1], order);
 }
 
 pub fn partition(
     comptime T: type,
     data: []T,
     order: fn (T, T) Order,
-) usize {
+) struct { []T, []T } {
     std.debug.assert(data.len >= 2);
 
     const pivot = data[0];
 
-    var less_index: usize = 0;
-    var greater_index: usize = data.len - 1;
+    var less_index: isize = -1;
+    var greater_index: usize = data.len;
 
     while (true) {
-        while (order(data[less_index], pivot) == .lt) {
+        while (true) {
             less_index += 1;
+            if (order(data[@bitCast(less_index)], pivot) != .lt) {
+                break;
+            }
         }
 
-        while (order(data[greater_index], pivot) == .gt) {
+        while (true) {
             greater_index -= 1;
+            if (order(data[greater_index], pivot) != .gt) {
+                break;
+            }
         }
 
         if (less_index >= greater_index) {
-            return greater_index;
+            return .{ data[0..@bitCast(less_index)], data[greater_index + 1 .. data.len] };
         }
 
-        std.mem.swap(T, &data[less_index], &data[greater_index]);
+        std.mem.swap(T, &data[@bitCast(less_index)], &data[greater_index]);
     }
 }
 
 test "quick sort works" {
-    var data = [_]u8{ 4, 7, 1, 5 };
-    quickSort(
-        @as([]u8, &data),
-        ungeneric_order(u8),
-    );
-    var expected = [_]u8{ 1, 4, 5, 7 };
-    try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &data));
+    {
+        var data = [_]u8{ 3, 1, 6, 4, 5, 2 };
+
+        quickSort(
+            @as([]u8, &data),
+            ungeneric_order(u8),
+        );
+        var expected = [_]u8{ 1, 2, 3, 4, 5, 6 };
+        try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &data));
+    }
+
+    {
+        var data = [_]u8{ 4, 7, 1, 5, 2 };
+
+        quickSort(
+            @as([]u8, &data),
+            ungeneric_order(u8),
+        );
+        var expected = [_]u8{ 1, 2, 4, 5, 7 };
+        try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &data));
+    }
 }
 
 pub fn bubbleSort(
