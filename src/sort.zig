@@ -2,6 +2,49 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
+pub fn insertionSort(
+    data: anytype,
+    order: fn (
+        @typeInfo(@TypeOf(data)).pointer.child,
+        @typeInfo(@TypeOf(data)).pointer.child,
+    ) Order,
+) void {
+    const item_type = @typeInfo(@TypeOf(data)).pointer.child;
+    var sorted_index: isize = 1;
+    while (@as(usize, @bitCast(sorted_index)) < data.len) {
+        var position: isize = sorted_index;
+        while (position > 0 and order(data[@bitCast(position - 1)], data[@bitCast(position)]) == .gt) {
+            std.mem.swap(item_type, &data[@bitCast(position - 1)], &data[@bitCast(position)]);
+            position -= 1;
+        }
+        sorted_index += 1;
+    }
+}
+
+test "insertion sort works" {
+    {
+        var data = [_]u8{ 3, 1, 6, 4, 5, 2 };
+
+        insertionSort(
+            @as([]u8, &data),
+            ungeneric_order(u8),
+        );
+        var expected = [_]u8{ 1, 2, 3, 4, 5, 6 };
+        try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &data));
+    }
+
+    {
+        var data = [_]u8{ 4, 7, 1, 5, 2 };
+
+        insertionSort(
+            @as([]u8, &data),
+            ungeneric_order(u8),
+        );
+        var expected = [_]u8{ 1, 2, 4, 5, 7 };
+        try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &data));
+    }
+}
+
 /// Sort `data` and copy it to `buffer`
 pub fn mergeSort(
     data: anytype,
