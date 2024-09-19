@@ -30,15 +30,23 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     {
-        var groups = [_]usize{ 100, 80, 60, 65, 110, 25, 50, 60, 90, 140, 75, 120, 75, 100, 70, 200, 120, 40 };
-        const bin_size = 400;
+        var groups = [_]usize{ 12, 30, 4, 6, 28, 20, 18, 3, 20, 8, 9, 10 };
+        const bin_size = 50;
+
         std.debug.print("lowerBound: {}\n", .{bin_packing.lowerBound(&groups, bin_size)});
-        std.debug.print("firstFit: {}\n", .{bin_packing.firstFit(&groups, bin_size)});
+        {
+            var bins = try bin_packing.firstFit(&groups, bin_size, allocator);
+            defer bins.deinit();
 
-        var bins = try bin_packing.firstFitDecreasing(&groups, bin_size, allocator);
-        defer bins.deinit();
+            std.debug.print("firstFit: {any}\n", .{bins.slice()});
+        }
 
-        std.debug.print("firstFitDecreasing: {any}\n", .{bins.slice()});
+        {
+            var bins = try bin_packing.firstFitDecreasing(&groups, bin_size, allocator);
+            defer bins.deinit();
+
+            std.debug.print("firstFitDecreasing: {any}\n", .{bins.slice()});
+        }
     }
     _ = gpa.detectLeaks();
 }

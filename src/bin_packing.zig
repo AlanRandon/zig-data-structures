@@ -4,27 +4,30 @@ const sort = @import("./sort.zig").quickSort;
 const order = @import("./sort.zig").ungeneric_order(usize);
 const Array = @import("./array.zig").Array(usize);
 
-pub fn firstFit(groups: []const usize, bin_size: usize) usize {
-    var remaining: usize = 0;
-    var used_bins: usize = 0;
+pub fn firstFit(groups: []const usize, bin_size: usize, allocator: Allocator) !Array {
+    var bins = try Array.init(allocator);
 
-    for (groups) |group| {
+    grp: for (groups) |group| {
         std.debug.assert(group <= bin_size);
 
-        if (group > remaining) {
-            used_bins += 1;
-            remaining = bin_size;
+        for (bins.slice()) |*bin| {
+            if (bin.* + group <= bin_size) {
+                bin.* += group;
+                continue :grp;
+            }
         }
 
-        remaining -= group;
+        try bins.push(group);
     }
 
-    return used_bins;
+    return bins;
 }
 
 test "first fit" {
-    try std.testing.expectEqual(4, firstFit(&[_]usize{ 3, 1, 6, 4, 5, 2 }, 7));
-    try std.testing.expectEqual(5, firstFit(&[_]usize{ 100, 80, 60, 65, 110, 25, 50, 60, 90, 140, 75, 120, 75, 100, 70, 200, 120, 40 }, 400));
+    var groups = [_]usize{ 3, 1, 6, 4, 5, 2 };
+    var bins = try firstFit(&groups, 7, std.testing.allocator);
+    defer bins.deinit();
+    try std.testing.expectEqual(4, bins.length);
 }
 
 pub fn firstFitDecreasing(groups: []usize, bin_size: usize, allocator: Allocator) !Array {
