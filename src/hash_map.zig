@@ -6,7 +6,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
     return struct {
         const Self = @This();
 
-        const Entry = struct {
+        pub const Entry = struct {
             key: K,
             value: V,
         };
@@ -85,15 +85,19 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
             return hasher.final();
         }
 
-        pub fn get(self: *Self, key: K) ?V {
+        pub fn getPtr(self: *Self, key: K) ?*V {
             const bucket = self.buckets[hash(key) % self.buckets.len];
             var node = bucket.head orelse return null;
             while (true) {
                 if (std.meta.eql(node.data.key, key)) {
-                    return node.*.data.value;
+                    return &node.*.data.value;
                 }
                 node = node.next orelse return null;
             }
+        }
+
+        pub fn get(self: *Self, key: K) ?V {
+            return (self.getPtr(key) orelse return null).*;
         }
 
         pub fn resize(self: *Self, capacity: usize) Allocator.Error!void {
@@ -139,6 +143,30 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
                 std.debug.print("{any}\n\n", .{bucket.head});
             }
             std.debug.print("------\n", .{});
+        }
+
+        pub const Iter = struct {
+            node: ?*Bucket.Node,
+            buckets: []Bucket,
+
+            pub fn next(it: *Iter) ?Entry {
+                while (it.node == null) {
+                    if (it.buckets.len > 0) {
+                        it.node = it.buckets[0].head;
+                        it.buckets = it.buckets[1..];
+                    } else {
+                        return null;
+                    }
+                }
+
+                const node = it.node.?;
+                it.node = node.next;
+                return node.data;
+            }
+        };
+
+        pub fn iter(self: *Self) Iter {
+            return .{ .buckets = self.buckets, .node = null };
         }
     };
 }
