@@ -63,6 +63,12 @@ pub fn Array(comptime T: type) type {
         pub fn slice(self: *Self) []T {
             return self.data[0..self.length];
         }
+
+        pub fn toOwnedSlice(self: Self) ![]T {
+            var arr = self;
+            try arr.shrink();
+            return arr.slice();
+        }
     };
 }
 

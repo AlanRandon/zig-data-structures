@@ -30,23 +30,24 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     {
-        var groups = [_]usize{ 12, 30, 4, 6, 28, 20, 18, 3, 20, 8, 9, 10 };
-        const bin_size = 50;
+        const file = try std.fs.cwd().openFile("src/huffman.zig", .{});
+        defer file.close();
 
-        std.debug.print("lowerBound: {}\n", .{bin_packing.lowerBound(&groups, bin_size)});
-        {
-            var bins = try bin_packing.firstFit(&groups, bin_size, allocator);
-            defer bins.deinit();
+        const data = try file.readToEndAlloc(allocator, 1_000_000);
+        defer allocator.free(data);
 
-            std.debug.print("firstFit: {any}\n", .{bins.slice()});
-        }
+        var encoding = try huffman.Huffman.encode(data, allocator);
+        defer encoding.tree.deinit();
+        defer encoding.data.deinit();
 
-        {
-            var bins = try bin_packing.firstFitDecreasing(&groups, bin_size, allocator);
-            defer bins.deinit();
+        const decoding = try huffman.Huffman.decode(&encoding.tree, &encoding.data, allocator);
+        defer allocator.free(decoding);
 
-            std.debug.print("firstFitDecreasing: {any}\n", .{bins.slice()});
-        }
+        std.debug.print("{} -> {} ({}%)\n", .{
+            encoding.data.length,
+            decoding.len,
+            decoding.len * 100 / encoding.data.length,
+        });
     }
     _ = gpa.detectLeaks();
 }
