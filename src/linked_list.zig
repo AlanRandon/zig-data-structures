@@ -32,7 +32,9 @@ pub fn SinglyLinkedList(comptime T: type) type {
         pub fn popHead(self: *Self) ?T {
             const head = self.head orelse return null;
             self.head = head.next;
-            return head.data;
+            const data = head.data;
+            self.allocator.destroy(head);
+            return data;
         }
 
         pub fn getNode(self: *Self, index: usize) ?*Node {

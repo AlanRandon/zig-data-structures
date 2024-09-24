@@ -106,8 +106,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
                 var bucket = bucket_const;
                 while (bucket.popHead()) |entry| {
                     const rehash = hash(entry.key) % new_map.buckets.len;
-                    var new_bucket = new_map.buckets[rehash];
-                    try new_bucket.insertHead(entry);
+                    try new_map.buckets[rehash].insertHead(entry);
                 }
             }
             self.allocator.free(self.buckets);
@@ -146,8 +145,8 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
         }
 
         pub const Iter = struct {
-            node: ?*Bucket.Node,
-            buckets: []Bucket,
+            node: ?*const Bucket.Node,
+            buckets: []const Bucket,
 
             pub fn next(it: *Iter) ?Entry {
                 while (it.node == null) {
@@ -173,15 +172,32 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
 
 test "hash map works" {
     const allocator = std.testing.allocator;
-    var map = try HashMap(u64, u64).init(10, allocator);
-    try map.resize(5);
-    defer map.deinit();
+    {
+        var map = try HashMap(u64, u64).init(10, allocator);
+        try map.resize(5);
+        defer map.deinit();
 
-    inline for (.{ .{ 1, 10 }, .{ 2, 20 } }) |entry| {
-        try map.insert(entry.@"0", entry.@"1");
-        try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
+        inline for (.{ .{ 1, 10 }, .{ 2, 20 } }) |entry| {
+            try map.insert(entry.@"0", entry.@"1");
+            try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
+        }
+
+        try std.testing.expectEqual(try map.remove(2), 20);
+        try std.testing.expectEqual(map.get(2), null);
     }
 
-    try std.testing.expectEqual(try map.remove(2), 20);
-    try std.testing.expectEqual(map.get(2), null);
+    {
+        var map = try HashMap(u64, []const u64).init(1, allocator);
+        try map.resize(5);
+        defer map.deinit();
+
+        inline for (0..10) |i| {
+            const entry = .{ i, &[_]u64{i * 10} };
+            try map.insert(entry.@"0", entry.@"1");
+            try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
+        }
+
+        try std.testing.expectEqual(try map.remove(2), &[_]u64{20});
+        try std.testing.expectEqual(map.get(2), null);
+    }
 }
