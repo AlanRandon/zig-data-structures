@@ -19,6 +19,37 @@ pub const Huffman = struct {
             right: *Node,
         },
 
+        fn serialize(node: *const Node, bit_set: *BitSet) !void {
+            switch (node.*) {
+                .branch => |branch| {
+                    try bit_set.push(0);
+                    try branch.left.serialize(bit_set);
+                    try branch.right.serialize(bit_set);
+                },
+                .leaf => |value| {
+                    try bit_set.push(1);
+                    try bit_set.pushInt(u8, value);
+                },
+            }
+        }
+
+        fn deserialize(bit_set: *BitSet.Iter, allocator: Allocator) !*Node {
+            const tag = bit_set.next() orelse return error.HuffmanTreeMissingTag;
+            const node = try allocator.create(Node);
+            errdefer allocator.destroy(node);
+
+            if (tag == 1) {
+                node.* = .{ .leaf = bit_set.readInt(u8) orelse return error.HuffmanTreeMissingLeaf };
+            } else {
+                node.* = .{ .branch = .{
+                    .left = try Node.deserialize(bit_set, allocator),
+                    .right = try Node.deserialize(bit_set, allocator),
+                } };
+            }
+
+            return node;
+        }
+
         pub fn deinit(node: *Node, allocator: Allocator) void {
             defer allocator.destroy(node);
             switch (node.*) {
@@ -180,12 +211,11 @@ pub const Huffman = struct {
         return .{ .data = result, .tree = tree };
     }
 
-    pub fn decode(huffman: *const Huffman, data: *const BitSet, allocator: Allocator) ![]u8 {
+    pub fn decode(huffman: *const Huffman, it: *BitSet.Iter, allocator: Allocator) ![]u8 {
         switch (huffman.root.*) {
             .branch => |root| {
                 var result = try Array(u8).init(allocator);
 
-                var it = data.iter();
                 var node = root;
                 while (it.next()) |bit| {
                     const n = if (bit == 0) node.left else node.right;
@@ -203,13 +233,67 @@ pub const Huffman = struct {
                 return try result.toOwnedSlice();
             },
             .leaf => |value| {
-                const result = try allocator.alloc(u8, data.length);
+                const result = try allocator.alloc(u8, it.remaining());
                 @memset(result, value);
                 return result;
             },
         }
     }
+
+    pub fn encodeAndSerialize(data: []const u8, allocator: Allocator) ![]u8 {
+        var encoding = try Huffman.encode(data, allocator);
+        defer encoding.tree.deinit();
+        defer encoding.data.deinit();
+
+        var bit_set = BitSet.init(allocator);
+        try encoding.tree.root.serialize(&bit_set);
+        try bit_set.pushInt(u32, @intCast(encoding.data.length));
+
+        var it = encoding.data.iter();
+        while (it.next()) |i| {
+            try bit_set.push(i);
+        }
+
+        return bit_set.data;
+    }
+
+    pub fn deserializeData(data: []const u8, allocator: Allocator) ![]u8 {
+        // TODO: This is dangerous
+        var bit_set = BitSet.fromSlice(@constCast(data), allocator);
+        var it = bit_set.iter();
+
+        var tree = Huffman{
+            .root = try Huffman.Node.deserialize(&it, allocator),
+            .allocator = allocator,
+        };
+        defer tree.deinit();
+
+        const length = it.readInt(u32) orelse return error.HuffmanMissingLength;
+        bit_set.length = it.index + length;
+        return try tree.decode(&it, allocator);
+    }
 };
+
+test "huffman serializes" {
+    for ([_][]const u8{
+        "Hello World!",
+        "AAAAAAAA",
+        "",
+        \\According to all known laws
+        \\of aviation,
+        \\
+        \\there is no way a bee
+        \\should be able to fly.
+    }) |data| {
+        const encoded = try Huffman.encodeAndSerialize(data, std.testing.allocator);
+        defer std.testing.allocator.free(encoded);
+
+        const decoded = try Huffman.deserializeData(encoded, std.testing.allocator);
+        defer std.testing.allocator.free(decoded);
+
+        try std.testing.expectEqualDeep(data, decoded);
+    }
+}
 
 test "huffman encodes" {
     for ([_][]const u8{
@@ -226,9 +310,69 @@ test "huffman encodes" {
         defer encoding.tree.deinit();
         defer encoding.data.deinit();
 
-        const decoded = try encoding.tree.decode(&encoding.data, std.testing.allocator);
+        var it = encoding.data.iter();
+        const decoded = try encoding.tree.decode(&it, std.testing.allocator);
         defer std.testing.allocator.free(decoded);
 
         try std.testing.expectEqualDeep(decoded, data);
     }
+}
+
+test "huffman fuzz" {
+    const data = std.testing.fuzzInput(.{});
+    var encoding = try Huffman.encode(data, std.testing.allocator);
+    defer encoding.tree.deinit();
+    defer encoding.data.deinit();
+
+    var it = encoding.data.iter();
+    const decoded = try encoding.tree.decode(&it, std.testing.allocator);
+    defer std.testing.allocator.free(decoded);
+
+    try std.testing.expectEqualDeep(decoded, data);
+}
+
+pub fn usage() noreturn {
+    _ = std.io.getStdErr().writer().print("USAGE: huffman compress|decompress INPUT OUTPUT\n", .{}) catch unreachable;
+    std.process.exit(1);
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    {
+        var args = std.process.args();
+        _ = args.next();
+
+        const command = if (args.next()) |command| command else usage();
+        const input = if (args.next()) |path| try std.fs.cwd().openFile(path, .{}) else usage();
+        defer input.close();
+
+        const output = if (args.next()) |path| try std.fs.cwd().createFile(path, .{}) else usage();
+        defer output.close();
+
+        if (std.mem.eql(u8, command, "compress")) {
+            const data = try input.readToEndAlloc(allocator, 1_000_000);
+            defer allocator.free(data);
+
+            const encoded = try Huffman.encodeAndSerialize(data, allocator);
+            defer allocator.free(encoded);
+
+            try output.writeAll(encoded);
+
+            std.debug.print("{} -> {} ({}%)\n", .{
+                data.len,
+                encoded.len,
+                encoded.len * 100 / data.len,
+            });
+        } else if (std.mem.eql(u8, command, "decompress")) {
+            const data = try input.readToEndAlloc(allocator, 1_000_000);
+            defer allocator.free(data);
+
+            const decoded = try Huffman.deserializeData(data, allocator);
+            defer allocator.free(decoded);
+
+            try output.writeAll(decoded);
+        } else usage();
+    }
+    _ = gpa.detectLeaks();
 }

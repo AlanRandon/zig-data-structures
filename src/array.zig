@@ -112,6 +112,14 @@ pub fn BitSet(comptime Int: type) type {
         length: usize,
         allocator: Allocator,
 
+        pub fn fromSlice(data: []Int, allocator: Allocator) Self {
+            return .{
+                .data = data,
+                .length = data.len * @bitSizeOf(Int),
+                .allocator = allocator,
+            };
+        }
+
         pub fn init(allocator: Allocator) Self {
             return .{
                 .data = allocator.alloc(Int, 0) catch unreachable,
@@ -121,7 +129,7 @@ pub fn BitSet(comptime Int: type) type {
         }
 
         pub fn initZero(length: usize, allocator: Allocator) !Self {
-            const data = try allocator.alloc(Int, length / @bitSizeOf(Int) + 1);
+            const data = try allocator.alloc(Int, std.math.divCeil(usize, length, @bitSizeOf(Int)) catch unreachable);
             @memset(data, 0);
 
             return .{
@@ -132,9 +140,36 @@ pub fn BitSet(comptime Int: type) type {
         }
 
         pub fn push(self: *Self, value: u1) !void {
-            self.data = try self.allocator.realloc(self.data, self.length / @bitSizeOf(Int) + 1);
-            self.set(self.length, value);
+            const end_position = self.length;
             self.length += 1;
+            self.data = try self.allocator.realloc(self.data, std.math.divCeil(usize, self.length, @bitSizeOf(Int)) catch unreachable);
+
+            self.set(end_position, value);
+        }
+
+        pub fn pushInt(self: *Self, comptime T: type, value: T) !void {
+            if (@typeInfo(T) != .int) {
+                @compileError("pushInt() must have an integer, passed: " ++ @typeName(@TypeOf(value)));
+            }
+
+            const int_size = @bitSizeOf(T);
+            const end_position = self.length;
+            self.length += int_size;
+            self.data = try self.allocator.realloc(self.data, std.math.divCeil(usize, self.length, @bitSizeOf(Int)) catch unreachable);
+
+            for (0..int_size) |index| {
+                const bit: u1 = @bitCast(value != value & ~(@as(T, 1) << @intCast(index)));
+                self.set(end_position + index, bit);
+            }
+        }
+
+        pub fn readInt(self: *const Self, comptime T: type, index: usize) T {
+            var result: T = 0;
+            for (0..@bitSizeOf(T)) |bit_index| {
+                const bit = self.get(bit_index + index);
+                result |= @as(T, @intCast(bit)) << @intCast(bit_index);
+            }
+            return result;
         }
 
         pub fn set(self: *Self, index: usize, value: u1) void {
@@ -167,7 +202,7 @@ pub fn BitSet(comptime Int: type) type {
             self.allocator.free(self.data);
         }
 
-        const Iter = struct {
+        pub const Iter = struct {
             bit_set: *const Self,
             index: usize,
 
@@ -179,6 +214,20 @@ pub fn BitSet(comptime Int: type) type {
                 const result = it.bit_set.get(it.index);
                 it.index += 1;
                 return result;
+            }
+
+            pub fn readInt(it: *Iter, comptime T: type) ?T {
+                if (it.index >= it.bit_set.length - 1 + @bitSizeOf(T)) {
+                    return null;
+                }
+
+                const result = it.bit_set.readInt(T, it.index);
+                it.index += @bitSizeOf(T);
+                return result;
+            }
+
+            pub fn remaining(it: *const Iter) usize {
+                return it.bit_set.length - it.index;
             }
         };
 
@@ -199,4 +248,10 @@ test "bit set works" {
     for (test_bits, 0..) |data, i| {
         try std.testing.expectEqual(data, bit_set.get(i));
     }
+
+    try std.testing.expectEqual(2, bit_set.data.len);
+
+    const len = bit_set.length;
+    try bit_set.pushInt(u8, 10);
+    try std.testing.expectEqual(10, bit_set.readInt(u8, len));
 }
