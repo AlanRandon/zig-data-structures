@@ -69,6 +69,23 @@ pub fn Array(comptime T: type) type {
             try arr.shrink();
             return arr.slice();
         }
+
+        pub fn reverse(self: *Self) void {
+            for (0..self.length / 2) |i| {
+                std.mem.swap(T, &self.data[i], &self.data[self.length - 1 - i]);
+            }
+        }
+
+        pub fn clone(self: *const Self) !Self {
+            const data = try self.allocator.alloc(T, self.data.len);
+            @memcpy(data, self.data);
+
+            return .{
+                .data = data,
+                .length = self.length,
+                .allocator = self.allocator,
+            };
+        }
     };
 }
 

@@ -10,6 +10,7 @@ const search = @import("./search.zig");
 const huffman = @import("./huffman.zig");
 const bin_packing = @import("./bin_packing.zig");
 const queue = @import("./queue.zig");
+const graph = @import("./graph.zig");
 
 test {
     _ = .{
@@ -24,6 +25,7 @@ test {
         search,
         bin_packing,
         queue,
+        graph,
     };
     std.testing.refAllDeclsRecursive(@This());
 }
