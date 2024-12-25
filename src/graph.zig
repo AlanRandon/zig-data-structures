@@ -1,5 +1,6 @@
 const std = @import("std");
 const Array = @import("./array.zig").Array;
+const quickSort = @import("./sort.zig").quickSort;
 const Allocator = std.mem.Allocator;
 
 pub fn WeightedGraph(T: type) type {
@@ -179,11 +180,7 @@ pub fn WeightedGraph(T: type) type {
             return true;
         }
 
-        pub fn prim(graph: *const Self) !Self {
-            if (!graph.isUndirected()) {
-                return error.GraphDirected;
-            }
-
+        pub fn cloneNodes(graph: *const Self) !Self {
             if (graph.nodes.length == 0) {
                 return Self{
                     .nodes = try Array(T).init(graph.allocator),
@@ -199,11 +196,20 @@ pub fn WeightedGraph(T: type) type {
             var result_nodes = try graph.nodes.clone();
             errdefer result_nodes.deinit();
 
-            var result = Self{
+            return Self{
                 .nodes = result_nodes,
                 .adjacency_matrix = adjacency_matrix,
                 .allocator = graph.allocator,
             };
+        }
+
+        pub fn prim(graph: *const Self) !Self {
+            if (!graph.isUndirected()) {
+                return error.GraphDirected;
+            }
+
+            var result = try graph.cloneNodes();
+            errdefer result.deinit();
 
             const linked_nodes = try graph.allocator.alloc(bool, graph.nodes.length);
             defer graph.allocator.free(linked_nodes);
@@ -254,6 +260,71 @@ pub fn WeightedGraph(T: type) type {
             for (linked_nodes) |linked| {
                 if (!linked) {
                     return error.GraphIncomplete;
+                }
+            }
+
+            return result;
+        }
+
+        fn kruskalParent(node_tree_parents: []const NodeIndex, node: NodeIndex) NodeIndex {
+            var head = node;
+            while (head != node_tree_parents[head]) {
+                head = node_tree_parents[head];
+            }
+            return head;
+        }
+
+        pub fn kruskal(graph: *const Self) !Self {
+            if (!graph.isUndirected()) {
+                return error.GraphDirected;
+            }
+
+            var result = try graph.cloneNodes();
+            errdefer result.deinit();
+
+            const Edge = struct {
+                nodes: struct { NodeIndex, NodeIndex },
+                weight: Weight,
+            };
+            var edges = try Array(Edge).init(graph.allocator);
+            defer edges.deinit();
+
+            const node_tree_parents = try graph.allocator.alloc(NodeIndex, graph.nodes.length);
+            defer graph.allocator.free(node_tree_parents);
+
+            for (0..graph.nodes.length) |i| {
+                node_tree_parents[i] = i;
+                for (i..graph.nodes.length) |j| {
+                    if (graph.edgeWeight(i, j)) |weight| {
+                        try edges.push(.{
+                            .nodes = .{ i, j },
+                            .weight = weight,
+                        });
+                    }
+                }
+            }
+
+            quickSort(edges.slice(), struct {
+                fn order(a: Edge, b: Edge) std.math.Order {
+                    return std.math.order(a.weight, b.weight);
+                }
+            }.order);
+
+            for (edges.slice()) |edge| {
+                const a = edge.nodes.@"0";
+                const b = edge.nodes.@"1";
+
+                const a_head = kruskalParent(node_tree_parents, a);
+                const b_head = kruskalParent(node_tree_parents, b);
+
+                // if a and b are from diffent subtrees
+                if (a_head != b_head) {
+                    result.addEdge(a, b, edge.weight);
+                    if (a_head < b_head) {
+                        node_tree_parents[b_head] = a_head;
+                    } else {
+                        node_tree_parents[a_head] = b_head;
+                    }
                 }
             }
 
@@ -326,8 +397,12 @@ test "dijkstra works" {
 }
 
 test "prim works" {
+    try std.testing.checkAllAllocationFailures(std.testing.allocator, testPrim, .{});
+}
+
+fn testPrim(allocator: Allocator) !void {
     const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(std.testing.allocator);
+    var graph = try Graph.init(allocator);
     defer graph.deinit();
 
     const a = try graph.addNode('A');
@@ -341,6 +416,34 @@ test "prim works" {
     graph.addUndirectedEdge(d, c, 3);
 
     var result = try graph.prim();
+    defer result.deinit();
+
+    try std.testing.expectEqual(1, result.edgeWeight(a, d));
+    try std.testing.expectEqual(2, result.edgeWeight(b, d));
+    try std.testing.expectEqual(3, result.edgeWeight(c, d));
+    try std.testing.expectEqual(null, result.edgeWeight(a, b));
+}
+
+test "kruskal works" {
+    try std.testing.checkAllAllocationFailures(std.testing.allocator, testKruskal, .{});
+}
+
+fn testKruskal(allocator: Allocator) !void {
+    const Graph = WeightedGraph(u8);
+    var graph = try Graph.init(allocator);
+    defer graph.deinit();
+
+    const a = try graph.addNode('A');
+    const b = try graph.addNode('B');
+    const c = try graph.addNode('C');
+    const d = try graph.addNode('D');
+
+    graph.addUndirectedEdge(a, b, 3);
+    graph.addUndirectedEdge(a, d, 1);
+    graph.addUndirectedEdge(b, d, 2);
+    graph.addUndirectedEdge(d, c, 3);
+
+    var result = try graph.kruskal();
     defer result.deinit();
 
     try std.testing.expectEqual(1, result.edgeWeight(a, d));
