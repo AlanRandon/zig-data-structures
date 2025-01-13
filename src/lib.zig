@@ -1,16 +1,18 @@
 const std = @import("std");
-const hash_map = @import("./hash_map.zig");
-const binary_tree = @import("./binary_tree.zig");
-const array = @import("./array.zig");
-const linked_list = @import("./linked_list.zig");
-const stack = @import("./stack.zig");
-const memoize = @import("./memoize.zig");
-const sort = @import("./sort.zig");
-const search = @import("./search.zig");
-const huffman = @import("./huffman.zig");
-const bin_packing = @import("./bin_packing.zig");
-const queue = @import("./queue.zig");
-const graph = @import("./graph.zig");
+
+pub const hash_map = @import("./hash_map.zig");
+pub const binary_tree = @import("./binary_tree.zig");
+pub const array = @import("./array.zig");
+pub const linked_list = @import("./linked_list.zig");
+pub const stack = @import("./stack.zig");
+pub const memoize = @import("./memoize.zig");
+pub const sort = @import("./sort.zig");
+pub const search = @import("./search.zig");
+pub const huffman = @import("./huffman.zig");
+pub const bin_packing = @import("./bin_packing.zig");
+pub const queue = @import("./queue.zig");
+pub const graph = @import("./graph.zig");
+pub const powerset = @import("./powerset.zig");
 
 test {
     _ = .{
@@ -26,6 +28,7 @@ test {
         bin_packing,
         queue,
         graph,
+        powerset,
     };
     std.testing.refAllDeclsRecursive(@This());
 }
