@@ -21,6 +21,14 @@ pub fn Array(comptime T: type) type {
             };
         }
 
+        pub fn fromSlice(data: []T, allocator: Allocator) Self {
+            return .{
+                .data = data,
+                .length = data.len,
+                .allocator = allocator,
+            };
+        }
+
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.data);
         }
@@ -46,21 +54,21 @@ pub fn Array(comptime T: type) type {
             return element;
         }
 
-        pub fn get(self: *Self, index: usize) ?T {
+        pub fn get(self: *const Self, index: usize) ?T {
             if (index >= self.length) return null;
             return self.data[index];
         }
 
-        pub fn last(self: *Self) ?T {
+        pub fn last(self: *const Self) ?T {
             if (0 == self.length) return null;
             return self.data[self.length - 1];
         }
 
-        pub fn first(self: *Self) ?T {
+        pub fn first(self: *const Self) ?T {
             return self.get(0);
         }
 
-        pub fn slice(self: *Self) []T {
+        pub fn slice(self: *const Self) []T {
             return self.data[0..self.length];
         }
 
