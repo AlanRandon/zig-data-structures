@@ -152,7 +152,7 @@ pub fn fullFit(comptime T: type, items: []const T, bin_size: usize, allocator: A
     return firstFit(T, items, bin_size, allocator);
 }
 
-test "full fit works" {
+test "fullFit" {
     var items = [_]u8{ 2, 6, 4, 9, 8, 8, 2, 5, 2 };
     var bins = try fullFit(u8, &items, 10, std.testing.allocator);
     defer bins.deinit();

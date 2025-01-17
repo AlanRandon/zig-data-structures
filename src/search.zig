@@ -1,20 +1,39 @@
 const std = @import("std");
 const Order = std.math.Order;
+const sort = @import("./sort.zig").quickSort;
 
-pub fn binarySearch(comptime T: type, data: []T, searcher: anytype) ?*T {
+// TODO:
+// pub fn Eytzinger(comptime T: type, Context: type) type {
+//     return struct {
+//         data: []T,
+//         context: @TypeOf(context),
+//     }{
+//         .data = data,
+//         .context = context,
+//     };
+// }
+
+pub fn binarySearch(
+    comptime T: type,
+    data: []T,
+    comptime Context: type,
+    opts: anytype,
+) ?*T {
+    const context: Context = comptime if (std.meta.fields(Context).len == 0) .{} else opts.context;
+
     if (data.len == 0) {
         return null;
     }
 
     const midpoint = data.len / 2;
-    switch (searcher.order(data[midpoint])) {
+    switch (context.search(data[midpoint])) {
         .gt => {
             const left = data[0..midpoint];
             return @call(
                 // .always_tail,
                 .auto,
                 binarySearch,
-                .{ T, left, searcher },
+                .{ T, left, Context, opts },
             );
         },
         .lt => {
@@ -23,15 +42,16 @@ pub fn binarySearch(comptime T: type, data: []T, searcher: anytype) ?*T {
                 // .always_tail,
                 .auto,
                 binarySearch,
-                .{ T, right, searcher },
+                .{ T, right, Context, opts },
             );
         },
         .eq => return &data[midpoint],
     }
 }
 
-test "binary search works" {
+test "binarySearch" {
     const Pair = struct { u8, u8 };
+
     var data = [_]Pair{
         .{ 1, 'a' },
         .{ 2, 'b' },
@@ -41,21 +61,21 @@ test "binary search works" {
         .{ 7, 'f' },
     };
 
+    const Context = struct {
+        value: u8,
+
+        fn search(context: *const @This(), item: Pair) Order {
+            return std.math.order(item.@"0", context.value);
+        }
+    };
+
     {
-        const item = binarySearch(Pair, @as([]Pair, &data), struct {
-            fn order(item: Pair) Order {
-                return std.math.order(item.@"0", 2);
-            }
-        }) orelse @panic("item not found");
+        const item = binarySearch(Pair, &data, Context, .{ .context = Context{ .value = 2 } }) orelse @panic("item not found");
         try std.testing.expectEqual(item.@"1", 'b');
     }
 
     {
-        const item = binarySearch(Pair, @as([]Pair, &data), struct {
-            fn order(item: Pair) Order {
-                return std.math.order(item.@"0", 4);
-            }
-        });
+        const item = binarySearch(Pair, &data, Context, .{ .context = Context{ .value = 4 } });
         try std.testing.expectEqual(@as(?*Pair, null), item);
     }
 }

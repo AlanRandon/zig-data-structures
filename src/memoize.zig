@@ -51,7 +51,7 @@ pub fn memoizer(func: anytype, allocator: Allocator) Allocator.Error!memoizeRetu
     return memoizeReturnType(@TypeOf(func)).init(func, allocator);
 }
 
-test "memoize works" {
+test "memoize" {
     const add = struct {
         var count: u64 = 0;
 

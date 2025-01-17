@@ -30,7 +30,7 @@ pub fn Stack(comptime T: type) type {
     };
 }
 
-test "stack works" {
+test "Stack" {
     const allocator = std.testing.allocator;
     var stack = try Stack(u64).init(allocator);
     defer stack.deinit();
