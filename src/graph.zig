@@ -204,9 +204,7 @@ pub fn WeightedGraph(T: type) type {
         }
 
         pub fn prim(graph: *const Self) !Self {
-            if (!graph.isUndirected()) {
-                return error.GraphDirected;
-            }
+            std.debug.assert(graph.isUndirected());
 
             var result = try graph.cloneNodes();
             errdefer result.deinit();
@@ -266,7 +264,7 @@ pub fn WeightedGraph(T: type) type {
             return result;
         }
 
-        fn kruskalParent(node_tree_parents: []const NodeIndex, node: NodeIndex) NodeIndex {
+        fn treeHead(node_tree_parents: []const NodeIndex, node: NodeIndex) NodeIndex {
             var head = node;
             while (head != node_tree_parents[head]) {
                 head = node_tree_parents[head];
@@ -275,9 +273,7 @@ pub fn WeightedGraph(T: type) type {
         }
 
         pub fn kruskal(graph: *const Self) !Self {
-            if (!graph.isUndirected()) {
-                return error.GraphDirected;
-            }
+            std.debug.assert(graph.isUndirected());
 
             var result = try graph.cloneNodes();
             errdefer result.deinit();
@@ -289,11 +285,11 @@ pub fn WeightedGraph(T: type) type {
             var edges = try Array(Edge).init(graph.allocator);
             defer edges.deinit();
 
-            const node_tree_parents = try graph.allocator.alloc(NodeIndex, graph.nodes.length);
-            defer graph.allocator.free(node_tree_parents);
+            const node_tree_heads = try graph.allocator.alloc(NodeIndex, graph.nodes.length);
+            defer graph.allocator.free(node_tree_heads);
 
             for (0..graph.nodes.length) |i| {
-                node_tree_parents[i] = i;
+                node_tree_heads[i] = i;
                 for (i..graph.nodes.length) |j| {
                     if (graph.edgeWeight(i, j)) |weight| {
                         try edges.push(.{
@@ -314,26 +310,125 @@ pub fn WeightedGraph(T: type) type {
                 const a = edge.nodes.@"0";
                 const b = edge.nodes.@"1";
 
-                const a_head = kruskalParent(node_tree_parents, a);
-                const b_head = kruskalParent(node_tree_parents, b);
+                const a_head = treeHead(node_tree_heads, a);
+                const b_head = treeHead(node_tree_heads, b);
 
                 // if a and b are from diffent subtrees
                 if (a_head != b_head) {
                     result.addEdge(a, b, edge.weight);
                     if (a_head < b_head) {
-                        node_tree_parents[b_head] = a_head;
+                        node_tree_heads[b_head] = a_head;
                     } else {
-                        node_tree_parents[a_head] = b_head;
+                        node_tree_heads[a_head] = b_head;
                     }
                 }
             }
 
             return result;
         }
+
+        pub fn isCyclicUndirected(graph: *const Self) !bool {
+            std.debug.assert(graph.isUndirected());
+
+            const node_tree_heads = try graph.allocator.alloc(NodeIndex, graph.nodes.length);
+            defer graph.allocator.free(node_tree_heads);
+
+            for (0..graph.nodes.length) |i| {
+                node_tree_heads[i] = i;
+            }
+
+            for (0..graph.nodes.length) |i| {
+                for (i..graph.nodes.length) |j| {
+                    std.debug.assert(graph.edgeWeight(i, j) == graph.edgeWeight(j, i));
+                    if (graph.edgeWeight(i, j)) |_| {
+                        const i_head = treeHead(node_tree_heads, i);
+                        const j_head = treeHead(node_tree_heads, j);
+                        switch (std.math.order(i_head, j_head)) {
+                            .lt => node_tree_heads[j_head] = i_head,
+                            .gt => node_tree_heads[i_head] = j_head,
+                            .eq => return true,
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        fn isSubgraphCyclic(graph: *const Self, root: NodeIndex, visited: []bool) bool {
+            visited[root] = true;
+            for (0..graph.nodes.length) |child| {
+                if (graph.edgeWeight(root, child) == null) {
+                    continue;
+                }
+
+                if (visited[child]) {
+                    return true;
+                }
+
+                if (graph.isSubgraphCyclic(child, visited)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        pub fn isCyclicDirected(graph: *const Self) !bool {
+            const visited = try graph.allocator.alloc(bool, graph.nodes.length);
+            defer graph.allocator.free(visited);
+
+            for (0..graph.nodes.length) |root| {
+                @memset(visited, false);
+                if (isSubgraphCyclic(graph, root, visited)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     };
 }
 
-test "graphs work" {
+test "isCyclicUndirected" {
+    const Graph = WeightedGraph(u8);
+    var graph = try Graph.init(std.testing.allocator);
+    defer graph.deinit();
+
+    const a = try graph.addNode('A');
+    const b = try graph.addNode('B');
+    const c = try graph.addNode('C');
+
+    graph.addUndirectedEdge(a, b, 0);
+    graph.addUndirectedEdge(b, c, 0);
+
+    try std.testing.expect(!try graph.isCyclicUndirected());
+
+    graph.addUndirectedEdge(a, c, 0);
+
+    try std.testing.expect(try graph.isCyclicUndirected());
+}
+
+test "isCyclicDirected" {
+    const Graph = WeightedGraph(u8);
+    var graph = try Graph.init(std.testing.allocator);
+    defer graph.deinit();
+
+    const a = try graph.addNode('A');
+    const b = try graph.addNode('B');
+    const c = try graph.addNode('C');
+
+    graph.addEdge(a, b, 0);
+    graph.addEdge(b, c, 0);
+
+    try std.testing.expect(!try graph.isCyclicDirected());
+
+    graph.addEdge(c, a, 0);
+
+    try std.testing.expect(try graph.isCyclicDirected());
+}
+
+test "WeightedGraph" {
     const Graph = WeightedGraph(u8);
     var graph = try Graph.init(std.testing.allocator);
     defer graph.deinit();
@@ -355,7 +450,7 @@ test "graphs work" {
     try std.testing.expectEqualSlices(Graph.NodeIndex, &[_]Graph.NodeIndex{ a, b, c }, result.path.slice());
 }
 
-test "dijkstra works" {
+test "dijkstra" {
     const Graph = WeightedGraph(u8);
     var graph = try Graph.init(std.testing.allocator);
     defer graph.deinit();
@@ -396,7 +491,7 @@ test "dijkstra works" {
     try std.testing.expectEqualSlices(Graph.NodeIndex, &[_]Graph.NodeIndex{ s, b, e, h, g, c, f, t }, result.path.slice());
 }
 
-test "prim works" {
+test "prim" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, testPrim, .{});
 }
 
@@ -424,7 +519,7 @@ fn testPrim(allocator: Allocator) !void {
     try std.testing.expectEqual(null, result.edgeWeight(a, b));
 }
 
-test "kruskal works" {
+test "kruskal" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, testKruskal, .{});
 }
 
