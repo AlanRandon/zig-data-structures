@@ -168,6 +168,47 @@ pub fn WeightedGraph(T: type) type {
             return DijkstraResult{ .path = path, .length = path_weight };
         }
 
+        test dijkstra {
+            const Graph = WeightedGraph(u8);
+            var graph = try Graph.init(std.testing.allocator);
+            defer graph.deinit();
+
+            const s = try graph.addNode('S');
+            const a = try graph.addNode('A');
+            const b = try graph.addNode('B');
+            const c = try graph.addNode('C');
+            const d = try graph.addNode('D');
+            const e = try graph.addNode('E');
+            const f = try graph.addNode('F');
+            const g = try graph.addNode('G');
+            const h = try graph.addNode('H');
+            const t = try graph.addNode('T');
+
+            graph.addUndirectedEdge(s, a, 7);
+            graph.addUndirectedEdge(s, b, 6);
+            graph.addUndirectedEdge(s, d, 16);
+            graph.addUndirectedEdge(a, d, 5);
+            graph.addUndirectedEdge(b, d, 8);
+            graph.addUndirectedEdge(a, c, 10);
+            graph.addUndirectedEdge(b, e, 3);
+            graph.addUndirectedEdge(c, d, 4);
+            graph.addUndirectedEdge(c, f, 3);
+            graph.addUndirectedEdge(c, g, 1);
+            graph.addUndirectedEdge(d, g, 6);
+            graph.addUndirectedEdge(e, g, 6);
+            graph.addUndirectedEdge(e, h, 4);
+            graph.addUndirectedEdge(g, h, 1);
+            graph.addUndirectedEdge(f, t, 2);
+            graph.addUndirectedEdge(g, t, 8);
+            graph.addUndirectedEdge(h, t, 10);
+
+            var result = try graph.dijkstra(s, t);
+            defer result.deinit();
+
+            try std.testing.expectEqual(20, result.length);
+            try std.testing.expectEqualSlices(Graph.NodeIndex, &[_]Graph.NodeIndex{ s, b, e, h, g, c, f, t }, result.path.slice());
+        }
+
         pub fn isUndirected(graph: *const Self) bool {
             for (0..graph.nodes.length) |i| {
                 for (0..graph.nodes.length) |j| {
@@ -264,6 +305,34 @@ pub fn WeightedGraph(T: type) type {
             return result;
         }
 
+        test prim {
+            try std.testing.checkAllAllocationFailures(std.testing.allocator, testPrim, .{});
+        }
+
+        fn testPrim(allocator: Allocator) !void {
+            const Graph = WeightedGraph(u8);
+            var graph = try Graph.init(allocator);
+            defer graph.deinit();
+
+            const a = try graph.addNode('A');
+            const b = try graph.addNode('B');
+            const c = try graph.addNode('C');
+            const d = try graph.addNode('D');
+
+            graph.addUndirectedEdge(a, b, 3);
+            graph.addUndirectedEdge(a, d, 1);
+            graph.addUndirectedEdge(b, d, 2);
+            graph.addUndirectedEdge(d, c, 3);
+
+            var result = try graph.prim();
+            defer result.deinit();
+
+            try std.testing.expectEqual(1, result.edgeWeight(a, d));
+            try std.testing.expectEqual(2, result.edgeWeight(b, d));
+            try std.testing.expectEqual(3, result.edgeWeight(c, d));
+            try std.testing.expectEqual(null, result.edgeWeight(a, b));
+        }
+
         fn treeHead(node_tree_parents: []const NodeIndex, node: NodeIndex) NodeIndex {
             var head = node;
             while (head != node_tree_parents[head]) {
@@ -327,6 +396,34 @@ pub fn WeightedGraph(T: type) type {
             return result;
         }
 
+        test kruskal {
+            try std.testing.checkAllAllocationFailures(std.testing.allocator, testKruskal, .{});
+        }
+
+        fn testKruskal(allocator: Allocator) !void {
+            const Graph = WeightedGraph(u8);
+            var graph = try Graph.init(allocator);
+            defer graph.deinit();
+
+            const a = try graph.addNode('A');
+            const b = try graph.addNode('B');
+            const c = try graph.addNode('C');
+            const d = try graph.addNode('D');
+
+            graph.addUndirectedEdge(a, b, 3);
+            graph.addUndirectedEdge(a, d, 1);
+            graph.addUndirectedEdge(b, d, 2);
+            graph.addUndirectedEdge(d, c, 3);
+
+            var result = try graph.kruskal();
+            defer result.deinit();
+
+            try std.testing.expectEqual(1, result.edgeWeight(a, d));
+            try std.testing.expectEqual(2, result.edgeWeight(b, d));
+            try std.testing.expectEqual(3, result.edgeWeight(c, d));
+            try std.testing.expectEqual(null, result.edgeWeight(a, b));
+        }
+
         pub fn isCyclicUndirected(graph: *const Self) !bool {
             std.debug.assert(graph.isUndirected());
 
@@ -353,6 +450,25 @@ pub fn WeightedGraph(T: type) type {
             }
 
             return false;
+        }
+
+        test isCyclicUndirected {
+            const Graph = WeightedGraph(u8);
+            var graph = try Graph.init(std.testing.allocator);
+            defer graph.deinit();
+
+            const a = try graph.addNode('A');
+            const b = try graph.addNode('B');
+            const c = try graph.addNode('C');
+
+            graph.addUndirectedEdge(a, b, 0);
+            graph.addUndirectedEdge(b, c, 0);
+
+            try std.testing.expect(!try graph.isCyclicUndirected());
+
+            graph.addUndirectedEdge(a, c, 0);
+
+            try std.testing.expect(try graph.isCyclicUndirected());
         }
 
         fn isSubgraphCyclic(graph: *const Self, root: NodeIndex, visited: []bool) bool {
@@ -387,48 +503,29 @@ pub fn WeightedGraph(T: type) type {
 
             return false;
         }
+
+        test isCyclicDirected {
+            const Graph = WeightedGraph(u8);
+            var graph = try Graph.init(std.testing.allocator);
+            defer graph.deinit();
+
+            const a = try graph.addNode('A');
+            const b = try graph.addNode('B');
+            const c = try graph.addNode('C');
+
+            graph.addEdge(a, b, 0);
+            graph.addEdge(b, c, 0);
+
+            try std.testing.expect(!try graph.isCyclicDirected());
+
+            graph.addEdge(c, a, 0);
+
+            try std.testing.expect(try graph.isCyclicDirected());
+        }
     };
 }
 
-test "isCyclicUndirected" {
-    const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(std.testing.allocator);
-    defer graph.deinit();
-
-    const a = try graph.addNode('A');
-    const b = try graph.addNode('B');
-    const c = try graph.addNode('C');
-
-    graph.addUndirectedEdge(a, b, 0);
-    graph.addUndirectedEdge(b, c, 0);
-
-    try std.testing.expect(!try graph.isCyclicUndirected());
-
-    graph.addUndirectedEdge(a, c, 0);
-
-    try std.testing.expect(try graph.isCyclicUndirected());
-}
-
-test "isCyclicDirected" {
-    const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(std.testing.allocator);
-    defer graph.deinit();
-
-    const a = try graph.addNode('A');
-    const b = try graph.addNode('B');
-    const c = try graph.addNode('C');
-
-    graph.addEdge(a, b, 0);
-    graph.addEdge(b, c, 0);
-
-    try std.testing.expect(!try graph.isCyclicDirected());
-
-    graph.addEdge(c, a, 0);
-
-    try std.testing.expect(try graph.isCyclicDirected());
-}
-
-test "WeightedGraph" {
+test WeightedGraph {
     const Graph = WeightedGraph(u8);
     var graph = try Graph.init(std.testing.allocator);
     defer graph.deinit();
@@ -448,101 +545,4 @@ test "WeightedGraph" {
 
     try std.testing.expectEqual(27, result.length);
     try std.testing.expectEqualSlices(Graph.NodeIndex, &[_]Graph.NodeIndex{ a, b, c }, result.path.slice());
-}
-
-test "dijkstra" {
-    const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(std.testing.allocator);
-    defer graph.deinit();
-
-    const s = try graph.addNode('S');
-    const a = try graph.addNode('A');
-    const b = try graph.addNode('B');
-    const c = try graph.addNode('C');
-    const d = try graph.addNode('D');
-    const e = try graph.addNode('E');
-    const f = try graph.addNode('F');
-    const g = try graph.addNode('G');
-    const h = try graph.addNode('H');
-    const t = try graph.addNode('T');
-
-    graph.addUndirectedEdge(s, a, 7);
-    graph.addUndirectedEdge(s, b, 6);
-    graph.addUndirectedEdge(s, d, 16);
-    graph.addUndirectedEdge(a, d, 5);
-    graph.addUndirectedEdge(b, d, 8);
-    graph.addUndirectedEdge(a, c, 10);
-    graph.addUndirectedEdge(b, e, 3);
-    graph.addUndirectedEdge(c, d, 4);
-    graph.addUndirectedEdge(c, f, 3);
-    graph.addUndirectedEdge(c, g, 1);
-    graph.addUndirectedEdge(d, g, 6);
-    graph.addUndirectedEdge(e, g, 6);
-    graph.addUndirectedEdge(e, h, 4);
-    graph.addUndirectedEdge(g, h, 1);
-    graph.addUndirectedEdge(f, t, 2);
-    graph.addUndirectedEdge(g, t, 8);
-    graph.addUndirectedEdge(h, t, 10);
-
-    var result = try graph.dijkstra(s, t);
-    defer result.deinit();
-
-    try std.testing.expectEqual(20, result.length);
-    try std.testing.expectEqualSlices(Graph.NodeIndex, &[_]Graph.NodeIndex{ s, b, e, h, g, c, f, t }, result.path.slice());
-}
-
-test "prim" {
-    try std.testing.checkAllAllocationFailures(std.testing.allocator, testPrim, .{});
-}
-
-fn testPrim(allocator: Allocator) !void {
-    const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(allocator);
-    defer graph.deinit();
-
-    const a = try graph.addNode('A');
-    const b = try graph.addNode('B');
-    const c = try graph.addNode('C');
-    const d = try graph.addNode('D');
-
-    graph.addUndirectedEdge(a, b, 3);
-    graph.addUndirectedEdge(a, d, 1);
-    graph.addUndirectedEdge(b, d, 2);
-    graph.addUndirectedEdge(d, c, 3);
-
-    var result = try graph.prim();
-    defer result.deinit();
-
-    try std.testing.expectEqual(1, result.edgeWeight(a, d));
-    try std.testing.expectEqual(2, result.edgeWeight(b, d));
-    try std.testing.expectEqual(3, result.edgeWeight(c, d));
-    try std.testing.expectEqual(null, result.edgeWeight(a, b));
-}
-
-test "kruskal" {
-    try std.testing.checkAllAllocationFailures(std.testing.allocator, testKruskal, .{});
-}
-
-fn testKruskal(allocator: Allocator) !void {
-    const Graph = WeightedGraph(u8);
-    var graph = try Graph.init(allocator);
-    defer graph.deinit();
-
-    const a = try graph.addNode('A');
-    const b = try graph.addNode('B');
-    const c = try graph.addNode('C');
-    const d = try graph.addNode('D');
-
-    graph.addUndirectedEdge(a, b, 3);
-    graph.addUndirectedEdge(a, d, 1);
-    graph.addUndirectedEdge(b, d, 2);
-    graph.addUndirectedEdge(d, c, 3);
-
-    var result = try graph.kruskal();
-    defer result.deinit();
-
-    try std.testing.expectEqual(1, result.edgeWeight(a, d));
-    try std.testing.expectEqual(2, result.edgeWeight(b, d));
-    try std.testing.expectEqual(3, result.edgeWeight(c, d));
-    try std.testing.expectEqual(null, result.edgeWeight(a, b));
 }
