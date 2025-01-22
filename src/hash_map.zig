@@ -170,7 +170,7 @@ pub fn HashMap(comptime K: type, comptime V: type) type {
     };
 }
 
-test "HashMap" {
+test HashMap {
     const allocator = std.testing.allocator;
     {
         var map = try HashMap(u64, u64).init(10, allocator);

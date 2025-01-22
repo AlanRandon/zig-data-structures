@@ -97,7 +97,7 @@ pub fn Array(comptime T: type) type {
     };
 }
 
-test "Array" {
+test Array {
     const allocator = std.testing.allocator;
     var array = try Array(u64).init(allocator);
     defer array.deinit();
@@ -262,7 +262,7 @@ pub fn BitSet(comptime Int: type) type {
     };
 }
 
-test "BitSet" {
+test BitSet {
     var bit_set = BitSet(u8).init(std.testing.allocator);
     defer bit_set.deinit();
     const test_bits = [_]u1{ 0, 1, 0, 0, 0, 1, 1, 1, 0, 1 };
