@@ -8,31 +8,34 @@ pub fn Stack(comptime T: type) type {
 
         items: Array(T),
 
-        fn init(allocator: Allocator) Allocator.Error!Self {
+        pub fn init(allocator: Allocator) Allocator.Error!Self {
             return .{ .items = try Array(T).init(allocator) };
         }
 
-        fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self) void {
             self.items.deinit();
         }
 
-        fn push(self: *Self, item: T) Allocator.Error!void {
+        pub fn push(self: *Self, item: T) Allocator.Error!void {
             try self.items.push(item);
         }
 
-        fn pop(self: *Self) ?T {
+        pub fn pop(self: *Self) ?T {
             return self.items.pop();
         }
 
-        fn peek(self: *Self) ?T {
+        pub fn peek(self: *Self) ?T {
             return self.items.last();
+        }
+
+        pub fn isEmpty(self: *Self) bool {
+            return self.items.length == 0;
         }
     };
 }
 
-test "Stack" {
-    const allocator = std.testing.allocator;
-    var stack = try Stack(u64).init(allocator);
+test Stack {
+    var stack = try Stack(u64).init(std.testing.allocator);
     defer stack.deinit();
 
     try stack.push(6);

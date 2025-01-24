@@ -1,4 +1,5 @@
 const std = @import("std");
+const Stack = @import("./stack.zig").Stack;
 const Allocator = std.mem.Allocator;
 
 const Color = enum { red, black };
@@ -415,6 +416,41 @@ pub fn RedBlackTree(comptime T: type, comptime orderFn: fn (T, T) std.math.Order
                 }
             }
         }
+
+        pub const Iter = struct {
+            node: ?*Node,
+            parents: Stack(*Node),
+
+            pub fn next(it: *Iter) !?T {
+                if (it.node) |n| {
+                    var node = n;
+                    while (true) {
+                        if (node.left) |left| {
+                            try it.parents.push(node);
+                            node = left;
+                        } else {
+                            it.node = node.right;
+                            return node.data;
+                        }
+                    }
+                } else {
+                    const node = it.parents.pop() orelse return null;
+                    it.node = node.right;
+                    return node.data;
+                }
+            }
+
+            pub fn deinit(it: *Iter) void {
+                it.parents.deinit();
+            }
+        };
+
+        pub fn iter(tree: *const Self, allocator: Allocator) !Iter {
+            return .{
+                .node = tree.root,
+                .parents = try Stack(*Node).init(allocator),
+            };
+        }
     };
 }
 
@@ -454,6 +490,13 @@ test RedBlackTree {
         _ = tree.root.?.assertNoViolations();
 
         try std.testing.expectEqual(tree.find(3), null);
+
+        var it = try tree.iter(std.testing.allocator);
+        defer it.deinit();
+
+        try std.testing.expectEqual(it.next(), 0);
+        try std.testing.expectEqual(it.next(), 1);
+        try std.testing.expectEqual(it.next(), 2);
     }
 
     {
@@ -477,7 +520,7 @@ pub fn RedBlackTreeMap(comptime K: type, comptime V: type, orderFn: fn (K, K) st
     return struct {
         tree: Tree,
 
-        const Entry = struct {
+        pub const Entry = struct {
             key: K,
             value: V,
 
@@ -523,11 +566,28 @@ pub fn RedBlackTreeMap(comptime K: type, comptime V: type, orderFn: fn (K, K) st
                 return null;
             }
         }
+
+        pub const Iter = struct {
+            iter: Tree.Iter,
+
+            pub fn next(it: *Iter) !?Entry {
+                return it.iter.next();
+            }
+
+            pub fn deinit(it: *Iter) void {
+                it.iter.deinit();
+            }
+        };
+
+        pub fn iter(tree: *Self, allocator: Allocator) !Iter {
+            return .{ .iter = try tree.tree.iter(allocator) };
+        }
     };
 }
 
 test RedBlackTreeMap {
-    var map = RedBlackTreeMap(u64, []const u64, orderAsc(u64)).init(std.testing.allocator);
+    const Map = RedBlackTreeMap(u64, []const u64, orderAsc(u64));
+    var map = Map.init(std.testing.allocator);
     defer map.deinit();
 
     inline for (0..100) |i| {
@@ -543,7 +603,12 @@ test RedBlackTreeMap {
         _ = map.tree.root.?.assertNoViolations();
     }
 
-    _ = map.tree.root.?.assertNoViolations();
+    var it = try map.iter(std.testing.allocator);
+    defer it.deinit();
+
+    inline for (0..10) |i| {
+        try std.testing.expectEqualDeep(try it.next(), Map.Entry{ .key = i, .value = &[_]u64{i * 10} });
+    }
 
     try std.testing.expectEqualDeep(map.remove(6), &[_]u64{60});
     _ = map.tree.root.?.assertNoViolations();
