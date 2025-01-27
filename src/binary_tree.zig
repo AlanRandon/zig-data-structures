@@ -104,6 +104,13 @@ pub fn RedBlackTree(comptime T: type, comptime orderFn: fn (T, T) std.math.Order
                     .root => std.debug.panic("cannot get sibling of root", .{}),
                 };
             }
+
+            pub fn numberNodes(node: *const Node) usize {
+                var size: usize = 1;
+                if (node.left) |left| size += left.numberNodes();
+                if (node.right) |right| size += right.numberNodes();
+                return size;
+            }
         };
 
         pub fn deinit(tree: *Self) void {
@@ -567,6 +574,22 @@ pub fn RedBlackTreeMap(comptime K: type, comptime V: type, orderFn: fn (K, K) st
             }
         }
 
+        pub fn min(tree: *const Self) ?*const Entry {
+            return tree.tree.min();
+        }
+
+        pub fn max(tree: *const Self) ?*const Entry {
+            return tree.tree.max();
+        }
+
+        pub fn size(tree: *const Self) usize {
+            return if (tree.tree.root) |root| root.numberNodes() else 0;
+        }
+
+        pub fn isEmpty(tree: *const Self) bool {
+            return tree.tree.root == null;
+        }
+
         pub const Iter = struct {
             iter: Tree.Iter,
 
@@ -597,6 +620,8 @@ test RedBlackTreeMap {
 
         try std.testing.expectEqual(map.get(entry.@"0").?, entry.@"1");
     }
+
+    try std.testing.expectEqual(map.size(), 100);
 
     inline for (.{ 99, 17, 68, 37, 43, 53, 23 }) |i| {
         try std.testing.expectEqualDeep(map.remove(i), &[_]u64{i * 10});

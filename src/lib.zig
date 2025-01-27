@@ -13,6 +13,7 @@ pub const bin_packing = @import("./bin_packing.zig");
 pub const queue = @import("./queue.zig");
 pub const graph = @import("./graph.zig");
 pub const powerset = @import("./powerset.zig");
+pub const trie = @import("./trie.zig");
 
 test {
     _ = .{
@@ -29,6 +30,7 @@ test {
         queue,
         graph,
         powerset,
+        trie,
     };
     std.testing.refAllDeclsRecursive(@This());
 }
