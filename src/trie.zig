@@ -145,6 +145,52 @@ pub fn Trie(comptime K: type, comptime V: type) type {
                 return;
             }
         }
+
+        pub fn remove(trie: *Self, key: Key) void {
+            if (key.len == 0) {
+                trie.root.value = null;
+            }
+
+            var node = &trie.root;
+            var suffix = key;
+            outer: while (true) {
+                for (node.children.slice(), 0..) |*prefix, i| {
+                    if (isPrefix(suffix, prefix.prefix)) {
+                        suffix = suffix[prefix.prefix.len..];
+                        if (suffix.len == 0) {
+                            switch (std.math.order(prefix.node.children.length, 1)) {
+                                .gt => {
+                                    prefix.node.value = null;
+                                    return;
+                                },
+                                .eq => {
+                                    const child = &prefix.node.children.data[0];
+                                    prefix.prefix = (child.prefix.ptr - prefix.prefix.len)[0 .. child.prefix.len + prefix.prefix.len];
+                                    prefix.node.value = child.node.value;
+                                    var old_children = prefix.node.children;
+                                    prefix.node.children = child.node.children;
+
+                                    trie.allocator.destroy(child.node);
+                                    old_children.deinit();
+
+                                    return;
+                                },
+                                .lt => {
+                                    trie.allocator.destroy(prefix.node);
+                                    node.children.remove(i);
+                                    return;
+                                },
+                            }
+                        }
+                        node = prefix.node;
+
+                        continue :outer;
+                    }
+                }
+
+                return;
+            }
+        }
     };
 }
 
@@ -169,4 +215,11 @@ test Trie {
 
     try trie.insert("tea", 5);
     try std.testing.expectEqual(trie.get("tea"), 5);
+
+    trie.remove("");
+    try std.testing.expectEqual(trie.get(""), null);
+
+    trie.remove("tested");
+    trie.remove("test");
+    try std.testing.expectEqual(trie.get("testing"), 2);
 }

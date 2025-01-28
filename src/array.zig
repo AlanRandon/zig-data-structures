@@ -94,6 +94,17 @@ pub fn Array(comptime T: type) type {
                 .allocator = self.allocator,
             };
         }
+
+        pub fn remove(array: *Self, index: usize) void {
+            array.length -= 1;
+            for (index..array.length) |i| {
+                array.data[i] = array.data[i + 1];
+            }
+        }
+
+        pub fn clear(array: *Self) void {
+            array.length = 0;
+        }
     };
 }
 
