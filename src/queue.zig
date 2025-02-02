@@ -37,7 +37,7 @@ pub fn PriorityQueue(comptime T: type) type {
     };
 }
 
-test "PriorityQueue" {
+test PriorityQueue {
     var queue = try PriorityQueue(u8).init(std.testing.allocator);
     defer queue.deinit();
 
@@ -91,7 +91,7 @@ pub fn CyclicQueue(comptime T: type, comptime size: usize) type {
     };
 }
 
-test "CyclicQueue" {
+test CyclicQueue {
     {
         var queue = CyclicQueue(u8, 10).init();
         try queue.enqueue(1);

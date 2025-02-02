@@ -36,7 +36,7 @@ pub fn powerset(comptime T: type, data: []const T, buf: []T) Iter(T) {
     };
 }
 
-test "powerset" {
+test powerset {
     const data: []const u8 = &.{ 1, 2, 3 };
     var buf: [3]u8 = undefined;
 

@@ -21,7 +21,7 @@ pub fn insertionSort(
     }
 }
 
-test "insertionSort" {
+test insertionSort {
     {
         var data = [_]u8{ 3, 1, 6, 4, 5, 2 };
 
@@ -118,7 +118,7 @@ pub fn ungeneric_order(comptime T: type) fn (T, T) Order {
     }.inner;
 }
 
-test "mergeSort" {
+test mergeSort {
     var data = [_]u8{ 4, 7, 1, 5 };
     var sorted: [4]u8 = undefined;
     mergeSort(
@@ -130,7 +130,7 @@ test "mergeSort" {
     try std.testing.expectEqualDeep(@as([]u8, &expected), @as([]u8, &sorted));
 }
 
-test "merge" {
+test merge {
     var a = [_]u8{ 1, 3, 4 };
     var b = [_]u8{ 2, 5, 7 };
     var merged: [6]u8 = undefined;
@@ -197,7 +197,7 @@ pub fn partition(
     }
 }
 
-test "quickSort" {
+test quickSort {
     {
         var data = [_]u8{ 3, 1, 6, 4, 5, 2 };
 
@@ -239,7 +239,7 @@ pub fn bubbleSort(
     }
 }
 
-test "bubbleSort" {
+test bubbleSort {
     var data = [_]u8{ 4, 7, 1, 5, 2 };
     bubbleSort(
         @as([]u8, &data),

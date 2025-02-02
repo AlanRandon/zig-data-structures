@@ -70,7 +70,7 @@ pub fn SinglyLinkedList(comptime T: type) type {
     };
 }
 
-test "SinglyLinkedList" {
+test SinglyLinkedList {
     const allocator = std.testing.allocator;
     const data = .{ 2, 4, 6, 8, 10 };
     var list = SinglyLinkedList(u64).init(allocator);
@@ -214,7 +214,7 @@ pub fn DoublyLinkedList(comptime T: type) type {
     };
 }
 
-test "DoublyLinkedList" {
+test DoublyLinkedList {
     var list = DoublyLinkedList(u8).init(std.testing.allocator);
     defer list.deinit();
 

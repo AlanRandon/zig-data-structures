@@ -35,7 +35,7 @@ pub fn firstFit(comptime T: type, items: []const T, bin_size: usize, allocator: 
     return bins;
 }
 
-test "first fit" {
+test firstFit {
     var groups = [_]u8{ 3, 1, 6, 4, 5, 2 };
     var bins = try firstFit(u8, &groups, 7, std.testing.allocator);
     defer bins.deinit();
@@ -55,7 +55,7 @@ pub fn firstFitDecreasing(comptime T: type, items: []T, bin_size: usize, allocat
     return firstFit(T, items, bin_size, allocator);
 }
 
-test "first fit decreasing" {
+test firstFitDecreasing {
     {
         var groups = [_]u8{ 3, 1, 6, 4, 5, 2 };
         var bins = try firstFitDecreasing(u8, &groups, 7, std.testing.allocator);
@@ -152,7 +152,7 @@ pub fn fullFit(comptime T: type, items: []const T, bin_size: usize, allocator: A
     return firstFit(T, items, bin_size, allocator);
 }
 
-test "fullFit" {
+test fullFit {
     var items = [_]u8{ 2, 6, 4, 9, 8, 8, 2, 5, 2 };
     var bins = try fullFit(u8, &items, 10, std.testing.allocator);
     defer bins.deinit();

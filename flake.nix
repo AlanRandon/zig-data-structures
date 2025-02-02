@@ -18,27 +18,18 @@
       };
     };
   };
-  outputs =
-    { nixpkgs, zig-overlay, zls-overlay, ... }:
-    let
-      system = "x86_64-linux";
-      zig = zig-overlay.packages.x86_64-linux.master;
-      overlays = [
-        (final: prev: {
-          inherit zig;
-        })
-      ];
-      pkgs = import nixpkgs { inherit system overlays; };
-      zls = zls-overlay.packages.x86_64-linux.zls.overrideAttrs (old: {
-        nativeBuildInputs = [ zig ];
+
+  outputs = { nixpkgs, zig-overlay, zls-overlay, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        zig = zig-overlay.packages.${system}.master;
+        zls = zls-overlay.packages.${system}.zls.overrideAttrs { nativeBuildInputs = [ zig ]; };
+        pkgs = import nixpkgs { inherit system; };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs = [ zig ];
+          packages = [ zls ];
+        };
       });
-    in
-    {
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = [
-          zls
-          zig
-        ];
-      };
-    };
 }

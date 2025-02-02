@@ -49,7 +49,7 @@ pub fn binarySearch(
     }
 }
 
-test "binarySearch" {
+test binarySearch {
     const Pair = struct { u8, u8 };
 
     var data = [_]Pair{
